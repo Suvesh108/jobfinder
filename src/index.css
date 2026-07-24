@@ -1,0 +1,121 @@
+@import "tailwindcss";
+
+:root {
+  --bg-void: #080A10;                  /* Deeper void space background */
+  --bg-surface: #0E1322;               /* True dark slate surface card color */
+  --bg-surface-raised: #151D33;        /* High-contrast dropdowns and overlays */
+  --accent-signal: #F2B84B;            /* Tech gold warning/secondary accent */
+  --accent-cool: #5B8CFF;              /* Hyper-blue developer accent */
+  --text-primary: #F0F3FA;             /* High-legibility paper white */
+  --text-muted: #8490A6;               /* Subdued tech text */
+  --status-success: #10B981;           /* Vivid emerald */
+  --status-danger: #EF4444;            /* Vivid rose red */
+  --status-warn: #F59E0B;              /* Vivid warning amber */
+}
+
+@theme {
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  
+  --color-void: var(--bg-void);
+  --color-surface: var(--bg-surface);
+  --color-surface-raised: var(--bg-surface-raised);
+  --color-signal: var(--accent-signal);
+  --color-cool: var(--accent-cool);
+  --color-text-primary: var(--text-primary);
+  --color-text-muted: var(--text-muted);
+  --color-success: var(--status-success);
+  --color-danger: var(--status-danger);
+  --color-warn: var(--status-warn);
+}
+
+@layer base {
+  body {
+    background-color: var(--bg-void);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4, h5, h6, .font-display {
+    font-family: var(--font-display);
+    font-feature-settings: "ss01" on, "ss02" on;
+  }
+
+  /* Keyboard Focus Indicator Floor */
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  div[tabindex="0"]:focus-visible {
+    outline: 2px solid var(--accent-cool) !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 0 4px rgba(91, 140, 255, 0.15) !important;
+  }
+}
+
+/* Fluid Easing & Transition Curve */
+.premium-transition {
+  transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Ambient Pulse Glow Keyframe */
+@keyframes ambient-glow {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 0.95; transform: scale(1.05); }
+}
+
+.animate-ambient-glow {
+  animation: ambient-glow 6s infinite ease-in-out;
+}
+
+/* Tabular numbers for non-jittery stats */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Custom Scrollbars matching palette */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-void);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 99px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-cool);
+  box-shadow: 0 0 8px rgba(91, 140, 255, 0.25);
+}
+
+/* Dedicated Signature Glassmorphism (reserved for JobModal hero layer only) */
+.signature-glass {
+  background: rgba(21, 29, 51, 0.85);
+  backdrop-filter: blur(16px) saturate(120%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 
+    0 4px 30px rgba(0, 0, 0, 0.4),
+    0 1px 1px rgba(255, 255, 255, 0.05) inset;
+}
+
+/* Respect user motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-delay: -1ms !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    background-attachment: initial !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+  }
+}
