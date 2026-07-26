@@ -638,11 +638,19 @@ export const SearchView: React.FC = () => {
   const rawListingsRef = useRef<JobListing[]>([]);
   const searchCacheRef = useRef<Map<string, JobListing[]>>(new Map());
   const isAbortedRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleStopSearch = () => {
     isAbortedRef.current = true;
+    if (abortControllerRef.current) {
+      try {
+        abortControllerRef.current.abort();
+      } catch (err) {
+        // ignore
+      }
+    }
     setIsLoading(false);
-    setSearchProgress(pct => pct);
+    setSearchProgress(100);
     setLoadingPhase('Search stopped by user.');
   };
 
@@ -784,6 +792,8 @@ export const SearchView: React.FC = () => {
       return;
     }
 
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     isAbortedRef.current = false;
     setIsLoading(true);
     setHasSearched(true);
@@ -816,10 +826,11 @@ export const SearchView: React.FC = () => {
     const counts: Record<string, number> = {};
 
     activeAdapters.forEach(async (adapter) => {
+      if (isAbortedRef.current || controller.signal.aborted) return;
       let adapterTotal = 0;
       
       const rolePromises = expandedQueries.map(async (query) => {
-        if (isAbortedRef.current) return [];
+        if (isAbortedRef.current || controller.signal.aborted) return [];
         const roleKey = `${adapter.id}:${query.trim().toLowerCase()}:${locQuery.trim().toLowerCase()}:${postedAfter}`;
         
         let fetched: JobListing[] = [];
@@ -828,20 +839,24 @@ export const SearchView: React.FC = () => {
         } else {
           try {
             fetched = await adapter.fetchJobs(query.trim(), locQuery.trim(), postedAfter);
+            if (isAbortedRef.current || controller.signal.aborted) return [];
             if (Array.isArray(fetched) && fetched.length > 0) {
               searchCacheRef.current.set(roleKey, fetched);
             }
           } catch (err) {
+            if (isAbortedRef.current || controller.signal.aborted) return [];
             console.error(`[Fetch Error] ${adapter.name} (${query}):`, err);
             fetched = [];
           }
         }
 
+        if (isAbortedRef.current || controller.signal.aborted) return [];
+
         completedTasks++;
         const pct = Math.min(99, Math.round((completedTasks / totalTasks) * 100));
         setSearchProgress(pct);
 
-        if (fetched.length > 0 && !isAbortedRef.current) {
+        if (fetched.length > 0 && !isAbortedRef.current && !controller.signal.aborted) {
           adapterTotal += fetched.length;
           counts[adapter.name] = adapterTotal;
           setSourceCounts({ ...counts });
@@ -856,8 +871,10 @@ export const SearchView: React.FC = () => {
 
       await Promise.allSettled(rolePromises);
 
-      if (completedTasks >= totalTasks || isAbortedRef.current) {
-        if (!isAbortedRef.current) {
+      if (isAbortedRef.current || controller.signal.aborted) return;
+
+      if (completedTasks >= totalTasks) {
+        if (!isAbortedRef.current && !controller.signal.aborted) {
           if (rawListingsRef.current.length === 0) {
             const capLoc = locQuery.trim()
               ? locQuery.trim().charAt(0).toUpperCase() + locQuery.trim().slice(1)
