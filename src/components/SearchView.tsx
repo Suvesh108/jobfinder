@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type JobApplication, type JobStatus } from '../db/schema';
 import { useUIStore } from '../store/useUIStore';
@@ -728,7 +728,6 @@ export const SearchView: React.FC = () => {
         `${t.role?.toLowerCase().trim()}|${t.company?.toLowerCase().trim()}|${t.location?.toLowerCase().trim()}` === key
       );
     });
-    console.log(`[Pipeline] After IndexedDB exclusion: ${filtered.length} / ${results.length} (removed ${results.length - filtered.length} already-tracked jobs)`);
     return filtered;
   }, [results, trackedUrls, trackedJobs]);
 
@@ -738,6 +737,166 @@ export const SearchView: React.FC = () => {
     return untrackedResults.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
   }, [untrackedResults, currentPage]);
 
+  // State for accumulative raw results across streaming adapter fetches
+  const [rawListings, setRawListings] = useState<JobListing[]>([]);
+  const rawListingsRef = useRef<JobListing[]>([]);
+  const searchCacheRef = useRef<Map<string, JobListing[]>>(new Map());
+
+  // Master pipeline runner: deduplicates & applies all 6 active filters to raw jobs
+  const runPipeline = useCallback((
+    rawJobs: JobListing[],
+    currentPostedAfter: string,
+    currentExperience: string,
+    currentWorkMode: string,
+    currentJobType: string,
+    currentMinSalary: string,
+    currentTier: string
+  ) => {
+    if (rawJobs.length === 0) {
+      setResults([]);
+      setPipelineStats(null);
+      return;
+    }
+
+    const dedupedResults = dedupeJobs(rawJobs);
+    
+    // Filter out expired or closed listings
+    const activeResults = dedupedResults.filter(job => {
+      const textToSearch = `${job.title} ${job.description}`.toLowerCase();
+      const blacklist = [
+        'expired', 'closed', 'no longer accepting applications',
+        'no longer active', 'not accepting applications',
+        'position filled', 'hiring closed', 'expired listing'
+      ];
+      return !blacklist.some(term => textToSearch.includes(term));
+    });
+
+    let sortedResults = activeResults.sort(
+      (a, b) => new Date(b.postedDate).getTime() - new Date(a.postedDate).getTime()
+    );
+
+    // ── Date filter ──
+    if (currentPostedAfter) {
+      const cutoff = new Date(currentPostedAfter).getTime();
+      sortedResults = sortedResults.filter(job => {
+        if (!job.postedDate) return true;
+        const d = new Date(job.postedDate).getTime();
+        return isNaN(d) || d >= cutoff;
+      });
+    }
+
+    // ── Experience filter ──
+    if (currentExperience !== 'all') {
+      sortedResults = sortedResults.filter(job => {
+        const text = `${job.title} ${job.description}`.toLowerCase();
+        const yearMatches: number[] = [];
+        const patterns = [
+          /(\d+)\s*[-–to]\s*(\d+)\s*(?:years?|yrs?)\b/gi,
+          /(\d+)\s*\+\s*(?:years?|yrs?)\b/gi,
+          /(?:minimum|min|at\s*least|minimum\s*of)\s*(\d+)\s*(?:years?|yrs?)\b/gi,
+          /(\d+)\s*(?:years?|yrs?)\s*(?:of\s*)?(?:exp|experience|relevant|work)/gi,
+          /(?:exp|experience)[:\s]+(\d+)\s*(?:years?|yrs?)\b/gi,
+        ];
+
+        for (const pattern of patterns) {
+          let match;
+          while ((match = pattern.exec(text)) !== null) {
+            yearMatches.push(parseInt(match[1], 10));
+            if (match[2]) yearMatches.push(parseInt(match[2], 10));
+          }
+        }
+
+        const minRequired = yearMatches.length > 0 ? Math.min(...yearMatches) : null;
+
+        if (currentExperience === 'fresher') {
+          const fresherKeywords = /\b(fresher|fresh\s*graduate|entry[\s-]?level|no\s*experience|0[\s-]?(?:years?|exp)|trainee|just\s*passed|newly\s*graduated)\b/i;
+          if (fresherKeywords.test(text)) return true;
+          if (minRequired === null) return true;
+          if (minRequired >= 1) return false;
+          return true;
+        }
+
+        const targetYears = parseInt(currentExperience, 10);
+        if (minRequired === null) return true;
+        return minRequired <= targetYears + 1;
+      });
+    }
+
+    // ── Work Mode filter ──
+    if (currentWorkMode !== 'all') {
+      sortedResults = sortedResults.filter(job => {
+        const text = `${job.title} ${job.location} ${job.description}`.toLowerCase();
+        const isRemote = text.includes('remote') || text.includes('wfh') || text.includes('work from home');
+        const isHybrid = text.includes('hybrid') || text.includes('flexible') || text.includes('split office');
+        
+        if (currentWorkMode === 'remote') return isRemote;
+        if (currentWorkMode === 'hybrid') return isHybrid;
+        if (currentWorkMode === 'onsite') return !isRemote && !isHybrid;
+        return true;
+      });
+    }
+
+    // ── Job Type filter ──
+    if (currentJobType !== 'all') {
+      sortedResults = sortedResults.filter(job => {
+        const text = `${job.title} ${job.description}`.toLowerCase();
+        const isIntern = text.includes('intern') || text.includes('stipend') || text.includes('trainee');
+        const isContract = text.includes('contract') || text.includes('freelance') || text.includes('consultant');
+        
+        if (currentJobType === 'internship') return isIntern;
+        if (currentJobType === 'contract') return isContract;
+        if (currentJobType === 'fulltime') return !isIntern && !isContract;
+        return true;
+      });
+    }
+
+    // ── Salary filter ──
+    if (currentMinSalary !== 'all') {
+      const minLpa = parseInt(currentMinSalary, 10);
+      sortedResults = sortedResults.filter(job => {
+        if (!job.salary || job.salary === 'Not Specified') return true; 
+        
+        const text = job.salary.toLowerCase();
+        const lpaMatch = text.match(/(\d+)\s*(?:-|to)\s*(\d+)\s*lpa/i) || text.match(/(\d+)\s*lpa/i);
+        if (lpaMatch) {
+          const val = parseInt(lpaMatch[2] || lpaMatch[1], 10);
+          return val >= minLpa;
+        }
+
+        const cleanText = text.replace(/,/g, '');
+        const monthlyMatch = cleanText.match(/(\d+)\s*(?:-|to)?\s*(\d+)?\s*(?:\/|per)?\s*(?:month|pm)/i);
+        if (monthlyMatch) {
+          const valMonthly = parseInt(monthlyMatch[2] || monthlyMatch[1], 10);
+          const valLpa = (valMonthly * 12) / 100000; 
+          return valLpa >= minLpa;
+        }
+
+        return true;
+      });
+    }
+
+    // ── Company Tier filter ──
+    if (currentTier !== 'all') {
+      const tierCompanies = COMPANY_TIERS[currentTier] || [];
+      sortedResults = sortedResults.filter(job => {
+        const companyLower = job.company.toLowerCase().trim();
+        return tierCompanies.some(name =>
+          companyLower.includes(name) || name.includes(companyLower)
+        );
+      });
+    }
+
+    setPipelineStats({ raw: rawJobs.length, afterDedup: dedupedResults.length, afterFilters: sortedResults.length });
+    setResults(sortedResults);
+  }, []);
+
+  // Instant filter re-execution when filter dropdowns change (0ms latency!)
+  useEffect(() => {
+    if (rawListings.length > 0) {
+      runPipeline(rawListings, postedAfter, experienceLevel, workMode, jobType, minSalary, companyTier);
+    }
+  }, [rawListings, postedAfter, experienceLevel, workMode, jobType, minSalary, companyTier, runPipeline]);
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedRoles.length === 0) {
@@ -745,241 +904,103 @@ export const SearchView: React.FC = () => {
       return;
     }
 
-    setIsLoading(true);
-    setHasSearched(true);
-    setResults([]);
-    setCurrentPage(1);
-    setSourceCounts({});
-    setPipelineStats(null);
-    setLoadingPhase('Sending search requests to all active sources...');
-
     const activeAdapters = adapters.filter(a => enabledAdapters.includes(a.id));
     if (activeAdapters.length === 0) {
       alert('Please enable at least one Search Source in the Settings tab to search for jobs.');
-      setIsLoading(false);
-      setHasSearched(false);
       return;
     }
 
+    setIsLoading(true);
+    setHasSearched(true);
+    setCurrentPage(1);
+    setSourceCounts({});
+    setPipelineStats(null);
+    setLoadingPhase('Streaming job search across active sources...');
     setActiveSearches(activeAdapters.map(a => a.name));
 
-    try {
-      // Run one fetch per (role × adapter) combination and merge
-      setLoadingPhase('Fetching jobs from all active sources — this may take a minute for completeness...');
-      const perAdapterResults: Record<string, JobListing[]> = {};
-      const allPromises = selectedRoles.flatMap(role =>
-        activeAdapters.map(async adapter => {
-          try {
-            const res = await adapter.fetchJobs(role.trim(), locQuery.trim(), postedAfter);
-            perAdapterResults[adapter.name] = [...(perAdapterResults[adapter.name] || []), ...res];
-            console.log(`[Pipeline] Raw from ${adapter.name} (role="${role}"): ${res.length} jobs`);
-            return res;
-          } catch (err) {
-            console.error(`Adapter ${adapter.name} failed for role "${role}":`, err);
-            return [];
-          }
-        })
-      );
+    // Check cache
+    const cacheKey = `${jobMode}:${selectedRoles.sort().join(',')}:${locQuery}:${postedAfter}`;
+    const cachedJobs = searchCacheRef.current.get(cacheKey);
 
-      const allResultsArrays = await Promise.all(allPromises);
-      let flatResults = allResultsArrays.flat();
-      
-      // Log per-source totals and save to state for UI display
-      const counts: Record<string, number> = {};
-      for (const [src, jobs] of Object.entries(perAdapterResults)) {
-        counts[src] = jobs.length;
-        console.log(`[Pipeline] Total from ${src}: ${jobs.length} jobs`);
-      }
-      console.log(`[Pipeline] Combined raw total (all sources): ${flatResults.length} jobs`);
-      setSourceCounts(counts);
-
-      // CENTRAL FALLBACK
-      if (flatResults.length === 0) {
-        const capLoc = locQuery.trim()
-          ? locQuery.trim().charAt(0).toUpperCase() + locQuery.trim().slice(1)
-          : 'India (Remote)';
-
-        flatResults = selectedRoles.flatMap((role, ri) =>
-          activeAdapters.map((adapter, ai) => {
-            const companies = [
-              'Tata Consultancy Services (TCS)', 'Infosys', 'Wipro', 'Zepto',
-              'Groww', 'Tech Mahindra', 'Cognizant', 'HCL Technologies',
-              'Swiggy', 'Razorpay', 'Jio Platforms',
-            ];
-            const idx = ri * activeAdapters.length + ai;
-            const company = companies[idx % companies.length];
-            const capRole = role.charAt(0).toUpperCase() + role.slice(1);
-            return {
-              title: `${capRole} Specialist`,
-              company,
-              location: capLoc,
-              salary: idx % 2 === 0 ? '₹8 - 14 LPA' : '₹65,000 / month',
-              url: `https://www.${adapter.id}.com/job/mock-${idx}-${Date.now()}`,
-              source: adapter.name,
-              postedDate: new Date(Date.now() - idx * 86400000).toISOString().split('T')[0],
-              description: `Exciting opening for a ${capRole} professional at ${company}. Required: ${capRole}, modern tooling, Git, and teamwork skills.`,
-            };
-          })
-        );
-      }
-
-      setLoadingPhase('Deduplicating results across sources...');
-      const dedupedResults = dedupeJobs(flatResults);
-      console.log(`[Pipeline] After Jaccard dedup (threshold 0.85): ${dedupedResults.length} jobs (removed ${flatResults.length - dedupedResults.length} duplicates)`);
-      
-      // Filter out expired or closed listings
-      const activeResults = dedupedResults.filter(job => {
-        const textToSearch = `${job.title} ${job.description}`.toLowerCase();
-        const blacklist = [
-          'expired',
-          'closed',
-          'no longer accepting applications',
-          'no longer active',
-          'not accepting applications',
-          'position filled',
-          'hiring closed',
-          'expired listing'
-        ];
-        return !blacklist.some(term => textToSearch.includes(term));
-      });
-
-      let sortedResults = activeResults.sort(
-        (a, b) => new Date(b.postedDate).getTime() - new Date(a.postedDate).getTime()
-      );
-
-      // ── Date filter: drop jobs posted before the chosen date ──
-      if (postedAfter) {
-        const cutoff = new Date(postedAfter).getTime();
-        sortedResults = sortedResults.filter(job => {
-          if (!job.postedDate) return true;
-          const d = new Date(job.postedDate).getTime();
-          return isNaN(d) || d >= cutoff;
-        });
-      }
-
-      // ── Experience filter: accurate year extraction ──
-      if (experienceLevel !== 'all') {
-        sortedResults = sortedResults.filter(job => {
-          const text = `${job.title} ${job.description}`.toLowerCase();
-
-          // Extract all explicit year requirements from the text
-          // Matches: "4 years", "4+ years", "4-6 years", "minimum 4 years", "at least 3 years", "3 to 5 years", "3yrs"
-          const yearMatches: number[] = [];
-          const patterns = [
-            /(\d+)\s*[-–to]\s*(\d+)\s*(?:years?|yrs?)\b/gi,  // "3-5 years", "3 to 5 years"
-            /(\d+)\s*\+\s*(?:years?|yrs?)\b/gi,               // "4+ years"
-            /(?:minimum|min|at\s*least|minimum\s*of)\s*(\d+)\s*(?:years?|yrs?)\b/gi, // "minimum 4 years"
-            /(\d+)\s*(?:years?|yrs?)\s*(?:of\s*)?(?:exp|experience|relevant|work)/gi, // "4 years of experience"
-            /(?:exp|experience)[:\s]+(\d+)\s*(?:years?|yrs?)\b/gi, // "experience: 3 years"
-          ];
-
-          for (const pattern of patterns) {
-            let match;
-            while ((match = pattern.exec(text)) !== null) {
-              // For range patterns (3-5 years), take the lower bound
-              yearMatches.push(parseInt(match[1], 10));
-              if (match[2]) yearMatches.push(parseInt(match[2], 10));
-            }
-          }
-
-          const minRequired = yearMatches.length > 0 ? Math.min(...yearMatches) : null;
-
-          if (experienceLevel === 'fresher') {
-            // Fresher: accept only if no explicit year requirement, or explicitly tagged for freshers
-            const fresherKeywords = /\b(fresher|fresh\s*graduate|entry[\s-]?level|no\s*experience|0[\s-]?(?:years?|exp)|trainee|just\s*passed|newly\s*graduated)\b/i;
-            if (fresherKeywords.test(text)) return true; // explicitly for freshers
-            if (minRequired === null) return true;        // no year requirement found — could be fresher friendly
-            if (minRequired >= 1) return false;           // requires at least 1 year — not for freshers
-            return true;
-          }
-
-          const targetYears = parseInt(experienceLevel, 10);
-
-          if (minRequired === null) {
-            // No explicit year requirement found — include it (may be flexible)
-            return true;
-          }
-
-          // Accept if the required range overlaps with the target
-          // e.g. target=2: accept "1-3 years", "2 years", "2+ years", but not "5+ years"
-          return minRequired <= targetYears + 1;
-        });
-      }
-
-      // ── Work Mode filter: filter by remote, hybrid, or onsite ──
-      if (workMode !== 'all') {
-        sortedResults = sortedResults.filter(job => {
-          const text = `${job.title} ${job.location} ${job.description}`.toLowerCase();
-          const isRemote = text.includes('remote') || text.includes('wfh') || text.includes('work from home');
-          const isHybrid = text.includes('hybrid') || text.includes('flexible') || text.includes('split office');
-          
-          if (workMode === 'remote') return isRemote;
-          if (workMode === 'hybrid') return isHybrid;
-          if (workMode === 'onsite') return !isRemote && !isHybrid;
-          return true;
-        });
-      }
-
-      // ── Job Type filter: filter by fulltime, internship, or contract ──
-      if (jobType !== 'all') {
-        sortedResults = sortedResults.filter(job => {
-          const text = `${job.title} ${job.description}`.toLowerCase();
-          const isIntern = text.includes('intern') || text.includes('stipend') || text.includes('trainee');
-          const isContract = text.includes('contract') || text.includes('freelance') || text.includes('consultant');
-          
-          if (jobType === 'internship') return isIntern;
-          if (jobType === 'contract') return isContract;
-          if (jobType === 'fulltime') return !isIntern && !isContract;
-          return true;
-        });
-      }
-
-      // ── Salary filter: filter by min expected LPA ──
-      if (minSalary !== 'all') {
-        const minLpa = parseInt(minSalary, 10);
-        sortedResults = sortedResults.filter(job => {
-          if (!job.salary || job.salary === 'Not Specified') return true; 
-          
-          const text = job.salary.toLowerCase();
-          const lpaMatch = text.match(/(\d+)\s*(?:-|to)\s*(\d+)\s*lpa/i) || text.match(/(\d+)\s*lpa/i);
-          if (lpaMatch) {
-            const val = parseInt(lpaMatch[2] || lpaMatch[1], 10);
-            return val >= minLpa;
-          }
-
-          const cleanText = text.replace(/,/g, '');
-          const monthlyMatch = cleanText.match(/(\d+)\s*(?:-|to)?\s*(\d+)?\s*(?:\/|per)?\s*(?:month|pm)/i);
-          if (monthlyMatch) {
-            const valMonthly = parseInt(monthlyMatch[2] || monthlyMatch[1], 10);
-            const valLpa = (valMonthly * 12) / 100000; 
-            return valLpa >= minLpa;
-          }
-
-          return true;
-        });
-      }
-
-      // ── Company Tier filter: match job company against tier lists ──
-      if (companyTier !== 'all') {
-        const tierCompanies = COMPANY_TIERS[companyTier] || [];
-        sortedResults = sortedResults.filter(job => {
-          const companyLower = job.company.toLowerCase().trim();
-          return tierCompanies.some(name =>
-            companyLower.includes(name) || name.includes(companyLower)
-          );
-        });
-      }
-
-      console.log(`[Pipeline] After all client-side filters: ${sortedResults.length} final jobs`);
-      setPipelineStats({ raw: flatResults.length, afterDedup: dedupedResults.length, afterFilters: sortedResults.length });
-      setLoadingPhase('');
-      setResults(sortedResults);
-    } catch (err) {
-      console.error('Unified job search failed:', err);
-    } finally {
-      setIsLoading(false);
-      setActiveSearches([]);
+    if (cachedJobs && cachedJobs.length > 0) {
+      console.log(`[Cache Hit] Serving ${cachedJobs.length} jobs instantly from cache!`);
+      rawListingsRef.current = cachedJobs;
+      setRawListings(cachedJobs);
+      setLoadingPhase('Instant cache hit — refreshing sources in background...');
+    } else {
+      rawListingsRef.current = [];
+      setRawListings([]);
+      setResults([]);
     }
+
+    const counts: Record<string, number> = {};
+    let completedCount = 0;
+
+    // Launch streaming requests per adapter in parallel!
+    activeAdapters.forEach(async (adapter) => {
+      try {
+        const adapterJobs: JobListing[] = [];
+        for (const role of selectedRoles) {
+          const res = await adapter.fetchJobs(role.trim(), locQuery.trim(), postedAfter);
+          if (Array.isArray(res) && res.length > 0) {
+            adapterJobs.push(...res);
+          }
+        }
+
+        counts[adapter.name] = adapterJobs.length;
+        console.log(`[Stream] ${adapter.name} finished: ${adapterJobs.length} jobs returned.`);
+
+        if (adapterJobs.length > 0) {
+          // Append new jobs live to rawListingsRef
+          const updatedRaw = [...rawListingsRef.current, ...adapterJobs];
+          rawListingsRef.current = updatedRaw;
+          setRawListings(updatedRaw);
+          setSourceCounts({ ...counts });
+          searchCacheRef.current.set(cacheKey, updatedRaw);
+        }
+      } catch (err) {
+        console.error(`[Stream Error] ${adapter.name} failed:`, err);
+      } finally {
+        completedCount++;
+        if (completedCount === activeAdapters.length) {
+          // All adapters complete
+          if (rawListingsRef.current.length === 0) {
+            // CENTRAL FALLBACK if zero jobs returned across all scrapers
+            const capLoc = locQuery.trim()
+              ? locQuery.trim().charAt(0).toUpperCase() + locQuery.trim().slice(1)
+              : 'India (Remote)';
+
+            const fallbackJobs = selectedRoles.flatMap((role, ri) =>
+              activeAdapters.map((adapter, ai) => {
+                const companies = [
+                  'Tata Consultancy Services (TCS)', 'Infosys', 'Wipro', 'Zepto',
+                  'Groww', 'Tech Mahindra', 'Cognizant', 'HCL Technologies',
+                  'Swiggy', 'Razorpay', 'Jio Platforms',
+                ];
+                const idx = ri * activeAdapters.length + ai;
+                const company = companies[idx % companies.length];
+                const capRole = role.charAt(0).toUpperCase() + role.slice(1);
+                return {
+                  title: `${capRole} Specialist`,
+                  company,
+                  location: capLoc,
+                  salary: idx % 2 === 0 ? '₹8 - 14 LPA' : '₹65,000 / month',
+                  url: `https://www.${adapter.id}.com/job/mock-${idx}-${Date.now()}`,
+                  source: adapter.name,
+                  postedDate: new Date(Date.now() - idx * 86400000).toISOString().split('T')[0],
+                  description: `Exciting opening for a ${capRole} professional at ${company}. Required: ${capRole}, modern tooling, Git, and teamwork skills.`,
+                };
+              })
+            );
+            rawListingsRef.current = fallbackJobs;
+            setRawListings(fallbackJobs);
+          }
+
+          setIsLoading(false);
+          setLoadingPhase('');
+        }
+      }
+    });
   };
 
   const handleSaveToTracker = async (listing: JobListing, status: JobStatus = 'Wishlist') => {

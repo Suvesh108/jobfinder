@@ -170,69 +170,76 @@ app.get('/search-internshala', async (req, res) => {
     'X-Requested-With': 'XMLHttpRequest',
   };
 
-  console.log(`[Internshala] Starting paginated scrape: query='${query}' limit=${MAX_RESULTS} maxPages=${MAX_PAGES}`);
+  console.log(`[Internshala] Starting parallel paginated scrape: query='${query}' limit=${MAX_RESULTS} maxPages=${MAX_PAGES}`);
 
-  for (let page = 1; page <= MAX_PAGES; page++) {
-    if (collected.length >= MAX_RESULTS) {
-      console.log(`[Internshala] Reached limit (${MAX_RESULTS}), stopping at page ${page}.`);
-      break;
+  const BATCH_SIZE = 5;
+  let stopPagination = false;
+
+  for (let startPage = 1; startPage <= MAX_PAGES && !stopPagination; startPage += BATCH_SIZE) {
+    if (collected.length >= MAX_RESULTS) break;
+
+    const pageBatch = [];
+    for (let p = startPage; p < startPage + BATCH_SIZE && p <= MAX_PAGES; p++) {
+      pageBatch.push(p);
     }
 
-    // Internshala paginates via /page-N/ in the URL path
-    let url = `https://internshala.com/${basePath}/`;
-    if (searchSlug) url += `${searchSlug}/`;
-    if (page > 1)   url += `page-${page}/`;
+    console.log(`[Internshala] Fetching pages ${pageBatch.join(', ')} in parallel...`);
 
-    console.log(`[Internshala] Fetching page ${page}: ${url}`);
+    const pagePromises = pageBatch.map(async (page) => {
+      let url = `https://internshala.com/${basePath}/`;
+      if (searchSlug) url += `${searchSlug}/`;
+      if (page > 1)   url += `page-${page}/`;
 
-    try {
-      const response = await axios.get(url, { headers, timeout: 20000 });
-      const $ = cheerio.load(response.data);
-      const cards = $('.individual_internship');
+      try {
+        const response = await axios.get(url, { headers, timeout: 12000 });
+        const $ = cheerio.load(response.data);
+        const cards = $('.individual_internship');
+        const pageJobs = [];
 
-      if (cards.length === 0) {
-        console.log(`[Internshala] Page ${page} returned 0 cards — stopping pagination.`);
+        if (cards.length === 0) return { page, jobs: [], isEnd: true };
+
+        cards.each((_index, element) => {
+          const $el = $(element);
+          const title = $el.find('h2.job-internship-name a').text().trim()
+            || $el.find('.job-title-container').text().trim()
+            || 'Internship / Job';
+          let link = $el.find('h2.job-internship-name a').attr('href')
+            || $el.find('.view_detail_button').attr('href') || '';
+          if (link && !link.startsWith('http')) link = 'https://internshala.com' + link;
+
+          const company  = $el.find('p.company-name').text().trim() || 'Unknown Company';
+          const loc      = $el.find('.locations span').text().trim() || location || 'India';
+          const stipend  = $el.find('span.stipend').text().trim() || 'Not Specified';
+          const descText = $el.find('.about_job .text').text().trim();
+          const description = descText
+            || `Apply on Internshala. Stipend/Salary: ${stipend}. Location: ${loc}.`;
+          const postedDate = new Date().toISOString().split('T')[0];
+
+          if (title && link) {
+            pageJobs.push({ title, company, location: loc, salary: stipend, url: link, source: 'Internshala', postedDate, description });
+          }
+        });
+
+        return { page, jobs: pageJobs, isEnd: pageJobs.length === 0 };
+      } catch (err) {
+        return { page, jobs: [], isEnd: true };
+      }
+    });
+
+    const resultsArray = await Promise.all(pagePromises);
+    // Maintain page order
+    resultsArray.sort((a, b) => a.page - b.page);
+
+    for (const res of resultsArray) {
+      if (res.jobs.length === 0) {
+        stopPagination = true;
         break;
       }
-
-      let pageCount = 0;
-      cards.each((_index, element) => {
-        if (collected.length >= MAX_RESULTS) return false;
-
-        const $el = $(element);
-        const title = $el.find('h2.job-internship-name a').text().trim()
-          || $el.find('.job-title-container').text().trim()
-          || 'Internship / Job';
-        let link = $el.find('h2.job-internship-name a').attr('href')
-          || $el.find('.view_detail_button').attr('href') || '';
-        if (link && !link.startsWith('http')) link = 'https://internshala.com' + link;
-
-        const company  = $el.find('p.company-name').text().trim() || 'Unknown Company';
-        const loc      = $el.find('.locations span').text().trim() || location || 'India';
-        const stipend  = $el.find('span.stipend').text().trim() || 'Not Specified';
-        const descText = $el.find('.about_job .text').text().trim();
-        const description = descText
-          || `Apply on Internshala. Stipend/Salary: ${stipend}. Location: ${loc}.`;
-        const postedDate = new Date().toISOString().split('T')[0];
-
-        if (title && link) {
-          collected.push({ title, company, location: loc, salary: stipend, url: link, source: 'Internshala', postedDate, description });
-          pageCount++;
+      for (const j of res.jobs) {
+        if (collected.length < MAX_RESULTS) {
+          collected.push(j);
         }
-      });
-
-      console.log(`[Internshala] Page ${page}: ${pageCount} jobs added. Total so far: ${collected.length}.`);
-
-      // Polite delay between pages
-      await new Promise(r => setTimeout(r, 800));
-
-    } catch (err) {
-      if (err.response && err.response.status === 404) {
-        console.log(`[Internshala] Page ${page} returned 404 — stopping pagination.`);
-      } else {
-        console.error(`[Internshala] Error on page ${page}:`, err.message);
       }
-      break;
     }
   }
 

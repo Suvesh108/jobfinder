@@ -131,7 +131,9 @@ def search_jobs(
     source_counts = {}
     MIN_ACCEPTABLE = 30  # if below this, retry with broader date window
 
-    for site in site_names:
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    def process_site(site: str):
         listings = scrape_source(site, query, location, results, hours_old)
         count = len(listings)
         print(f"[JobSpy] '{site}' first pass: {count} jobs (requested {results})")
@@ -146,8 +148,18 @@ def search_jobs(
                 listings = retry_listings
                 count = retry_count
 
-        source_counts[site] = count
-        all_listings.extend(listings)
+        return site, count, listings
+
+    # Scrape all requested sources in parallel for maximum speed
+    with ThreadPoolExecutor(max_workers=min(len(site_names), 5)) as executor:
+        futures = [executor.submit(process_site, site) for site in site_names]
+        for future in as_completed(futures):
+            try:
+                site, count, listings = future.result()
+                source_counts[site] = count
+                all_listings.extend(listings)
+            except Exception as e:
+                print(f"[JobSpy] Thread error: {e}")
 
     print(f"[JobSpy] Total raw across all sources: {len(all_listings)} | per-source: {source_counts}")
     return all_listings
