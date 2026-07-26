@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { db, type JobApplication, type JobStatus } from '../db/schema';
 import { parseJobUrl } from '../utils/helpers';
 import { useUIStore } from '../store/useUIStore';
 import { X, Globe, Plus, Trash2, Calendar, DollarSign, MapPin, Link2, Tag, User, Clock } from 'lucide-react';
+import { ConfirmModal } from './ConfirmModal';
 
 interface JobModalProps {
   isOpen: boolean;
@@ -35,6 +37,38 @@ const getStatusColor = (status: string): string => {
   }
 };
 
+const sanitizeDate = (dateStr?: string): string => {
+  if (!dateStr) return new Date().toISOString().split('T')[0];
+  const trimmed = dateStr.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  try {
+    const parsed = new Date(trimmed);
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toISOString().split('T')[0];
+    }
+  } catch (e) {
+    // fallback
+  }
+  return new Date().toISOString().split('T')[0];
+};
+
+const formatTimelineDate = (dateVal?: string): string => {
+  if (!dateVal) return 'Date not specified';
+  try {
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return 'Date not specified';
+    return d.toLocaleString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch (e) {
+    return 'Date not specified';
+  }
+};
+
 export const JobModal: React.FC<JobModalProps> = ({ isOpen, onClose, jobToEdit }) => {
   const defaultReminderDays = useUIStore(state => state.defaultReminderDays);
   
@@ -64,21 +98,22 @@ export const JobModal: React.FC<JobModalProps> = ({ isOpen, onClose, jobToEdit }
 
   useEffect(() => {
     if (jobToEdit) {
-      setCompany(jobToEdit.company);
-      setRole(jobToEdit.role);
-      setLocation(jobToEdit.location);
-      setSalary(jobToEdit.salary);
-      setSourceSite(jobToEdit.sourceSite);
-      setLink(jobToEdit.link);
-      setDateApplied(jobToEdit.dateApplied);
-      setStatus(jobToEdit.status);
-      setNotes(jobToEdit.notes);
-      setTags(jobToEdit.tags || []);
+      setCompany(jobToEdit.company || '');
+      setRole(jobToEdit.role || '');
+      setLocation(jobToEdit.location || '');
+      setSalary(jobToEdit.salary || '');
+      setSourceSite(jobToEdit.sourceSite || '');
+      setLink(jobToEdit.link || '');
+      setDateApplied(sanitizeDate(jobToEdit.dateApplied));
+      setStatus(AVAILABLE_STATUSES.includes(jobToEdit.status) ? jobToEdit.status : 'Wishlist');
+      setNotes(jobToEdit.notes || '');
+      setTags(Array.isArray(jobToEdit.tags) ? jobToEdit.tags.filter(Boolean) : []);
       setContactName(jobToEdit.contactName || '');
       setContactEmail(jobToEdit.contactEmail || '');
       setContactPhone(jobToEdit.contactPhone || '');
       setReminderDays(jobToEdit.reminderDays || defaultReminderDays);
       setUrlInput(jobToEdit.link || '');
+      setParseMessage(null);
     } else {
       setCompany('');
       setRole('');
@@ -197,27 +232,42 @@ export const JobModal: React.FC<JobModalProps> = ({ isOpen, onClose, jobToEdit }
     onClose();
   };
 
-  const handleDelete = async () => {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const handleDelete = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = async () => {
     if (jobToEdit && jobToEdit.id) {
-      if (window.confirm(`Are you sure you want to delete ${jobToEdit.role} at ${jobToEdit.company}?`)) {
-        await db.jobs.delete(jobToEdit.id);
-        onClose();
-      }
+      await db.jobs.delete(jobToEdit.id);
+      setShowDeleteConfirm(false);
+      onClose();
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-void/80 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="signature-glass w-full max-w-3xl rounded-2xl overflow-hidden max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+  if (!isOpen) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] overflow-y-auto bg-black/75 flex items-center justify-center p-4 backdrop-blur-md">
+      <div 
+        className="fluent-card w-full max-w-3xl rounded-3xl overflow-hidden max-h-[90vh] flex flex-col border shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+        style={{
+          background: 'var(--bg-surface-raised)',
+          borderColor: 'var(--border-subtle)',
+          boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.8)',
+        }}
+      >
         
         {/* Modal Header */}
-        <div className="px-6 py-4 bg-surface-raised/40 border-b border-white/[0.06] flex items-center justify-between">
+        <div className="px-6 py-4 border-b flex items-center justify-between" style={{ background: 'var(--bg-surface-raised)', borderColor: 'var(--border-subtle)' }}>
           <h2 className="text-md font-bold font-display text-text-primary flex items-center space-x-2">
             <span>{jobToEdit ? 'Edit Campaign Card' : 'Initiate Job Tracking'}</span>
           </h2>
           <button 
             onClick={onClose}
-            className="p-1 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-raised transition-colors"
+            className="p-1 rounded-lg text-text-muted hover:text-text-primary transition-colors cursor-pointer"
+            style={{ background: 'var(--bg-surface)' }}
           >
             <X className="h-5 w-5" />
           </button>
@@ -519,7 +569,7 @@ export const JobModal: React.FC<JobModalProps> = ({ isOpen, onClose, jobToEdit }
               </h4>
               <div className="relative border-l border-white/[0.06] ml-2 pl-4 py-1 space-y-4">
                 {jobToEdit.statusHistory && jobToEdit.statusHistory.length > 0 ? (
-                  jobToEdit.statusHistory.map((h, idx) => (
+                  jobToEdit.statusHistory.filter(h => Boolean(h && h.status)).map((h, idx) => (
                     <div key={idx} className="relative">
                       {/* Timeline dot with color coding matching status color */}
                       <span 
@@ -531,13 +581,7 @@ export const JobModal: React.FC<JobModalProps> = ({ isOpen, onClose, jobToEdit }
                           Moved to <span className="font-bold" style={{ color: getStatusColor(h.status) }}>{h.status}</span>
                         </span>
                         <span className="text-[10px] text-text-muted">
-                          {new Date(h.date).toLocaleString('en-IN', {
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
+                          {formatTimelineDate(h.date)}
                         </span>
                       </div>
                     </div>
@@ -583,6 +627,18 @@ export const JobModal: React.FC<JobModalProps> = ({ isOpen, onClose, jobToEdit }
         </div>
 
       </div>
-    </div>
+
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        title="Delete Application?"
+        message={`Are you sure you want to delete "${jobToEdit?.role || 'this role'} at ${jobToEdit?.company || 'this company'}"? This action cannot be undone.`}
+        confirmText="Delete Application"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
+    </div>,
+    document.body
   );
 };

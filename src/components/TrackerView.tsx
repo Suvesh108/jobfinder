@@ -19,7 +19,9 @@ import {
   Trash2,
   Tag,
   Check,
-  Globe
+  Globe,
+  TrendingUp,
+  KanbanSquare
 } from 'lucide-react';
 
 const COLUMNS: JobStatus[] = [
@@ -32,14 +34,14 @@ const COLUMNS: JobStatus[] = [
   'Withdrawn',
 ];
 
-const STATUS_THEMES: Record<JobStatus, { bg: string; text: string; border: string; accent: string }> = {
-  'Wishlist': { bg: 'rgba(136, 146, 166, 0.08)', text: '#8892A6', border: 'rgba(136, 146, 166, 0.15)', accent: '#8892A6' },
-  'Applied': { bg: 'rgba(91, 140, 255, 0.08)', text: '#5B8CFF', border: 'rgba(91, 140, 255, 0.15)', accent: '#5B8CFF' },
-  'OA/Assessment': { bg: 'rgba(192, 132, 252, 0.08)', text: '#C084FC', border: 'rgba(192, 132, 252, 0.15)', accent: '#C084FC' },
-  'Interview': { bg: 'rgba(251, 146, 60, 0.08)', text: '#FB923C', border: 'rgba(251, 146, 60, 0.15)', accent: '#FB923C' },
-  'Offer': { bg: 'rgba(74, 222, 128, 0.08)', text: '#4ADE80', border: 'rgba(74, 222, 128, 0.15)', accent: '#4ADE80' },
-  'Rejected': { bg: 'rgba(242, 107, 107, 0.08)', text: '#F26B6B', border: 'rgba(242, 107, 107, 0.15)', accent: '#F26B6B' },
-  'Withdrawn': { bg: 'rgba(148, 163, 184, 0.08)', text: '#94A3B8', border: 'rgba(148, 163, 184, 0.15)', accent: '#94A3B8' },
+const STATUS_THEMES: Record<string, { bg: string; text: string; border: string; accent: string }> = {
+  Wishlist: { bg: 'rgba(136, 146, 166, 0.12)', text: '#8892A6', border: 'rgba(136, 146, 166, 0.3)', accent: '#8892A6' },
+  Applied: { bg: 'rgba(91, 140, 255, 0.12)', text: '#5B8CFF', border: 'rgba(91, 140, 255, 0.3)', accent: '#5B8CFF' },
+  'OA/Assessment': { bg: 'rgba(192, 132, 252, 0.12)', text: '#C084FC', border: 'rgba(192, 132, 252, 0.3)', accent: '#C084FC' },
+  Interview: { bg: 'rgba(251, 146, 60, 0.12)', text: '#FB923C', border: 'rgba(251, 146, 60, 0.3)', accent: '#FB923C' },
+  Offer: { bg: 'rgba(74, 222, 128, 0.12)', text: '#4ADE80', border: 'rgba(74, 222, 128, 0.3)', accent: '#4ADE80' },
+  Rejected: { bg: 'rgba(242, 107, 107, 0.12)', text: '#F26B6B', border: 'rgba(242, 107, 107, 0.3)', accent: '#F26B6B' },
+  Withdrawn: { bg: 'rgba(148, 163, 184, 0.12)', text: '#94A3B8', border: 'rgba(148, 163, 184, 0.3)', accent: '#94A3B8' },
 };
 
 export const TrackerView: React.FC = () => {
@@ -76,7 +78,8 @@ export const TrackerView: React.FC = () => {
     const interviews = jobs.filter(j => j.status === 'Interview').length;
     const offers = jobs.filter(j => j.status === 'Offer').length;
     const wishlist = jobs.filter(j => j.status === 'Wishlist').length;
-    return { totalApplied, interviews, offers, wishlist };
+    const conversionRate = totalApplied > 0 ? Math.round((interviews + offers) / totalApplied * 100) : 0;
+    return { totalApplied, interviews, offers, wishlist, conversionRate };
   }, [jobs]);
 
   // Filtered jobs
@@ -175,197 +178,139 @@ export const TrackerView: React.FC = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+
+
   const isFiltered = filters.search || filters.source !== 'all' || filters.tag !== 'all' || dateOption !== 'all';
 
   return (
-    <div className="flex-1 flex flex-col min-w-0 overflow-hidden p-6 space-y-6 max-w-[1400px] mx-auto w-full">
-      
-      {/* Header Section */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 shrink-0 border-b border-white/[0.04] pb-4">
-        <div>
-          <h1 className="text-2xl font-bold font-display text-text-primary tracking-tight">Campaign Tracker</h1>
-          <p className="text-xs text-text-muted mt-1">
-            Track and manage your target companies and active pipeline stages.
-          </p>
+    <>
+      {/* ── Page Header ── */}
+      <div className="page-header">
+        <div className="page-header-row">
+          <div className="page-title-group">
+            <span
+              className="page-eyebrow"
+              style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent-primary)', border: '1px solid rgba(99,102,241,0.2)' }}
+            >
+              <KanbanSquare size={11} />
+              Pipeline Tracker
+            </span>
+            <h1 className="page-title">Applications</h1>
+            <p className="page-subtitle">Track every application — from wishlist to offer — in one place.</p>
+          </div>
+          <div className="page-actions">
+            <button onClick={handleAddClick} className="btn-primary">
+              <Plus size={15} />
+              <span>Add Application</span>
+            </button>
+            <button onClick={handleExportCSV} className="btn-secondary" title="Export CSV">
+              <Download size={14} style={{ color: 'var(--accent-emerald)' }} />
+              <span className="hidden sm:inline">Export CSV</span>
+            </button>
+            <button onClick={handleExportJSON} className="btn-secondary" title="Backup JSON">
+              <Download size={14} style={{ color: 'var(--accent-cool)' }} />
+              <span className="hidden sm:inline">Backup</span>
+            </button>
+            <button onClick={() => fileInputRef.current?.click()} className="btn-secondary" title="Import JSON">
+              <Upload size={14} style={{ color: 'var(--accent-purple)' }} />
+              <span className="hidden sm:inline">Import</span>
+            </button>
+            <input type="file" ref={fileInputRef} onChange={handleImportJSON} accept=".json" className="hidden" />
+          </div>
         </div>
-        
-        {/* Actions bar */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={handleAddClick}
-            className="bg-cool hover:bg-cool/90 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center space-x-2 active:scale-95 cursor-pointer shadow-md"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Add Application</span>
-          </button>
 
-          <button
-            onClick={handleExportCSV}
-            title="Export to CSV"
-            className="bg-surface hover:bg-surface-raised border border-white/[0.06] text-text-primary font-semibold text-xs px-3.5 py-2.5 rounded-xl transition-all flex items-center space-x-1.5 cursor-pointer"
-          >
-            <Download className="h-4 w-4" />
-            <span className="hidden sm:inline">Export CSV</span>
-          </button>
+        {/* ── Stats Row ── */}
+        <div className="stats-row">
+          <div className="stat-card">
+            <div className="stat-icon-wrap" style={{ background: 'linear-gradient(135deg,#3B82F6,#1D4ED8)' }}><Briefcase size={16} /></div>
+            <div className="stat-text"><span className="stat-value">{stats.totalApplied}</span><span className="stat-label">Active Apps</span></div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-icon-wrap" style={{ background: 'linear-gradient(135deg,#F97316,#EA580C)' }}><Calendar size={16} /></div>
+            <div className="stat-text"><span className="stat-value">{stats.interviews}</span><span className="stat-label">Interviews</span></div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-icon-wrap" style={{ background: 'linear-gradient(135deg,#22C55E,#15803D)' }}><Check size={16} /></div>
+            <div className="stat-text"><span className="stat-value">{stats.offers}</span><span className="stat-label">Offers</span></div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-icon-wrap" style={{ background: 'linear-gradient(135deg,#F59E0B,#D97706)' }}><Tag size={16} /></div>
+            <div className="stat-text"><span className="stat-value">{stats.wishlist}</span><span className="stat-label">Wishlist</span></div>
+          </div>
+          <div className="stat-card" style={{ gridColumn: 'span 1' }}>
+            <div className="stat-icon-wrap" style={{ background: 'linear-gradient(135deg,#A855F7,#7C3AED)' }}><TrendingUp size={16} /></div>
+            <div className="stat-text"><span className="stat-value">{stats.conversionRate}%</span><span className="stat-label">Int. Rate</span></div>
+          </div>
+        </div>
+      </div>
 
-          <button
-            onClick={handleExportJSON}
-            title="Backup database to JSON"
-            className="bg-surface hover:bg-surface-raised border border-white/[0.06] text-text-primary font-semibold text-xs px-3.5 py-2.5 rounded-xl transition-all flex-1 sm:flex-initial flex items-center justify-center space-x-1.5 cursor-pointer"
-          >
-            <Download className="h-4 w-4 text-cool" />
-            <span className="hidden sm:inline">Backup JSON</span>
-          </button>
-
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            title="Restore from JSON Backup"
-            className="bg-surface hover:bg-surface-raised border border-white/[0.06] text-text-primary font-semibold text-xs px-3.5 py-2.5 rounded-xl transition-all flex-1 sm:flex-initial flex items-center justify-center space-x-1.5 cursor-pointer"
-          >
-            <Upload className="h-4 w-4" />
-            <span className="hidden sm:inline">Import Backup</span>
-          </button>
-          
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={handleImportJSON} 
-            accept=".json" 
-            className="hidden" 
+      {/* ── Filters Bar ── */}
+      <div className="filters-bar">
+        <div className="filter-input-wrap">
+          <Search size={13} className="filter-input-icon" />
+          <input
+            type="text"
+            placeholder="Search company or role..."
+            value={filters.search}
+            onChange={(e) => setFilters({ search: e.target.value })}
+            className="filter-input"
           />
         </div>
-      </div>
 
-      {/* Mini Summary Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
-        <div className="bg-surface border border-white/[0.04] p-4 rounded-2xl flex items-center space-x-3.5 shadow-sm hover:border-cool/20 hover:shadow-[0_8px_20px_-8px_rgba(91,140,255,0.15)] transition-all duration-300 group">
-          <div className="p-2 bg-cool/10 rounded-xl">
-            <Briefcase className="h-5 w-5 text-cool group-hover:scale-110 transition-transform" />
-          </div>
-          <div>
-            <span className="text-[10px] font-bold text-text-muted uppercase block">Active Pipeline</span>
-            <span className="text-xl font-extrabold text-text-primary tabular-nums">{stats.totalApplied}</span>
-          </div>
-        </div>
+        <select
+          value={filters.source}
+          onChange={(e) => setFilters({ source: e.target.value })}
+          className="filter-select"
+        >
+          <option value="all">All Channels</option>
+          {uniqueSources.map(s => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
 
-        <div className="bg-surface border border-white/[0.04] p-4 rounded-2xl flex items-center space-x-3.5 shadow-sm hover:border-amber-500/20 hover:shadow-[0_8px_20px_-8px_rgba(242,184,75,0.15)] transition-all duration-300 group">
-          <div className="p-2 bg-amber-500/10 rounded-xl">
-            <Calendar className="h-5 w-5 text-amber-500 group-hover:scale-110 transition-transform" />
-          </div>
-          <div>
-            <span className="text-[10px] font-bold text-text-muted uppercase block">Interviews</span>
-            <span className="text-xl font-extrabold text-text-primary tabular-nums">{stats.interviews}</span>
-          </div>
-        </div>
+        <select
+          value={filters.tag}
+          onChange={(e) => setFilters({ tag: e.target.value })}
+          className="filter-select"
+        >
+          <option value="all">All Tags</option>
+          {uniqueTags.map(t => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
 
-        <div className="bg-surface border border-white/[0.04] p-4 rounded-2xl flex items-center space-x-3.5 shadow-sm hover:border-green-500/20 hover:shadow-[0_8px_20px_-8px_rgba(74,222,128,0.15)] transition-all duration-300 group">
-          <div className="p-2 bg-green-500/10 rounded-xl">
-            <Check className="h-5 w-5 text-green-400 group-hover:scale-110 transition-transform" />
-          </div>
-          <div>
-            <span className="text-[10px] font-bold text-text-muted uppercase block">Offers</span>
-            <span className="text-xl font-extrabold text-text-primary tabular-nums">{stats.offers}</span>
-          </div>
-        </div>
-
-        <div className="bg-surface border border-white/[0.04] p-4 rounded-2xl flex items-center space-x-3.5 shadow-sm hover:border-slate-500/20 hover:shadow-[0_8px_20px_-8px_rgba(148,163,184,0.15)] transition-all duration-300 group">
-          <div className="p-2 bg-slate-500/10 rounded-xl">
-            <Tag className="h-5 w-5 text-text-muted group-hover:scale-110 transition-transform" />
-          </div>
-          <div>
-            <span className="text-[10px] font-bold text-text-muted uppercase block">Wishlist</span>
-            <span className="text-xl font-extrabold text-text-primary tabular-nums">{stats.wishlist}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Filter panel */}
-      <div className="bg-surface border border-white/[0.05] rounded-2xl p-4 shrink-0 space-y-3 shadow-inner">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-          
-          <div className="relative">
-            <Search className="absolute left-3.5 top-3 h-3.5 w-3.5 text-text-muted" />
-            <input 
-              type="text"
-              placeholder="Search company or role..."
-              value={filters.search}
-              onChange={(e) => setFilters({ search: e.target.value })}
-              className="w-full bg-void border border-white/[0.04] rounded-xl pl-10 pr-4 py-2.5 text-xs text-text-primary placeholder-text-muted/50 focus:outline-none focus:border-cool transition-colors"
-            />
-          </div>
-
-          <div className="relative">
-            <select
-              value={filters.source}
-              onChange={(e) => setFilters({ source: e.target.value })}
-              className="w-full bg-void border border-white/[0.04] rounded-xl px-4 py-2.5 text-xs text-text-primary focus:outline-none focus:border-cool transition-colors cursor-pointer font-medium"
-            >
-              <option value="all">All Channels</option>
-              {uniqueSources.map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="relative">
-            <select
-              value={filters.tag}
-              onChange={(e) => setFilters({ tag: e.target.value })}
-              className="w-full bg-void border border-white/[0.04] rounded-xl px-4 py-2.5 text-xs text-text-primary focus:outline-none focus:border-cool transition-colors cursor-pointer font-medium"
-            >
-              <option value="all">All Tags</option>
-              {uniqueTags.map(t => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="relative">
-            <select
-              value={dateOption}
-              onChange={(e) => setDateOption(e.target.value)}
-              className="w-full bg-void border border-white/[0.04] rounded-xl px-4 py-2.5 text-xs text-text-primary focus:outline-none focus:border-cool transition-colors cursor-pointer font-medium"
-              style={{
-                borderColor: dateOption !== 'all' ? 'rgba(91,140,255,0.3)' : 'rgba(255,255,255,0.04)',
-                color: dateOption !== 'all' ? 'var(--text-primary)' : 'var(--text-muted)',
-              }}
-            >
-              <option value="all" className="bg-surface-raised text-text-muted font-semibold">All Time</option>
-              <option value="1" className="bg-surface-raised text-text-primary font-semibold">Last 24 Hours</option>
-              <option value="3" className="bg-surface-raised text-text-primary font-semibold">Last 3 Days</option>
-              <option value="7" className="bg-surface-raised text-text-primary font-semibold">Last 7 Days</option>
-              <option value="14" className="bg-surface-raised text-text-primary font-semibold">Last 14 Days</option>
-              <option value="30" className="bg-surface-raised text-text-primary font-semibold">Last 30 Days</option>
-            </select>
-          </div>
-
-        </div>
+        <select
+          value={dateOption}
+          onChange={(e) => setDateOption(e.target.value)}
+          className="filter-select"
+        >
+          <option value="all">All Time</option>
+          <option value="1">Last 24 Hours</option>
+          <option value="3">Last 3 Days</option>
+          <option value="7">Last 7 Days</option>
+          <option value="14">Last 14 Days</option>
+          <option value="30">Last 30 Days</option>
+        </select>
+        {/* spacer */}
+        <div style={{ flex: 1 }} />
 
         {isFiltered && (
-          <div className="flex items-center justify-between text-xs border-t border-white/[0.03] pt-2.5">
-            <span className="text-cool font-semibold">
-              Filter results: {filteredJobs.length} of {jobs.length} applications matched
-            </span>
-            <button
-              onClick={() => {
-                resetFilters();
-                setDateOption('all');
-              }}
-              className="text-danger hover:text-text-primary flex items-center space-x-1 font-bold transition-colors cursor-pointer"
-            >
-              <X className="h-3.5 w-3.5" />
-              <span>Reset Filters</span>
-            </button>
-          </div>
+          <button
+            onClick={() => { resetFilters(); setDateOption('all'); }}
+            className="filter-reset-btn"
+          >
+            <X size={12} />
+            <span>{filteredJobs.length}/{jobs.length} matched · Reset</span>
+          </button>
         )}
       </div>
 
-      {/* Redesigned Premium Cards List View */}
+      {/* ── HIGH-DENSITY TABLE LIST VIEW ── */}
       <div className="flex-1 overflow-y-auto pr-1 space-y-3.5 scrollbar-thin">
         {filteredJobs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center border border-dashed border-white/[0.04] rounded-2xl p-12 text-center bg-surface/10 select-none">
-            <AlertCircle className="h-7 w-7 text-text-muted/30 mb-3" />
-            <p className="text-xs font-semibold text-text-primary/70">No applications matched your filter query.</p>
+          <div className="flex flex-col items-center justify-center border border-dashed rounded-2xl p-12 text-center select-none" style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-surface-raised)' }}>
+            <AlertCircle className="h-8 w-8 text-text-muted/40 mb-3" />
+            <p className="text-xs font-semibold text-text-primary">No applications matched your filter query.</p>
             <p className="text-[10px] text-text-muted mt-1">Try modifying your text filters or date range.</p>
           </div>
         ) : (
@@ -382,24 +327,21 @@ export const TrackerView: React.FC = () => {
             return (
               <div
                 key={job.id}
-                className="bg-surface border-r border-y border-white/[0.03] rounded-r-2xl rounded-l-md p-5 hover:border-cool/25 hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(0,0,0,0.45)] transition-all duration-300 flex flex-col md:flex-row md:items-center justify-between gap-5 relative group"
+                className="fluent-card rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-5 relative group"
                 style={{ 
                   borderLeft: `4px solid ${theme.accent}`,
-                  boxShadow: `inset 4px 0 0 -3px ${theme.accent}`
                 }}
               >
                 {/* Left Details */}
                 <div className="flex items-start space-x-4 min-w-0 flex-1">
-                  {/* Status symbol indicator circle */}
                   <div 
-                    className="h-10 w-10 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 select-none border"
+                    className="h-10 w-10 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 select-none border text-white shadow-xs"
                     style={{ 
-                      backgroundColor: theme.bg, 
-                      color: theme.text,
+                      background: `linear-gradient(135deg, ${theme.accent} 0%, #1D4ED8 100%)`,
                       borderColor: theme.border
                     }}
                   >
-                    {job.company.charAt(0).toUpperCase()}
+                    {(job.company && job.company.length > 0) ? job.company.charAt(0).toUpperCase() : 'J'}
                   </div>
 
                   <div className="min-w-0 space-y-1.5 flex-1">
@@ -410,34 +352,38 @@ export const TrackerView: React.FC = () => {
                       >
                         {job.role}
                       </h4>
-                      <span className="text-[10px] font-extrabold text-text-muted bg-white/5 border border-white/10 px-2 py-0.5 rounded-lg select-none">
+                      <span 
+                        className="text-[10px] font-extrabold border px-2 py-0.5 rounded-lg select-none"
+                        style={{ background: 'var(--bg-surface-raised)', color: 'var(--text-secondary)', borderColor: 'var(--border-subtle)' }}
+                      >
                         {job.company}
                       </span>
                     </div>
 
-                    {/* Geolocation, Channel & Salary */}
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-muted">
                       <span className="flex items-center gap-1 select-none">
-                        <MapPin className="h-3.5 w-3.5 text-text-muted/60" />
+                        <MapPin className="h-3.5 w-3.5 text-text-muted" />
                         <span>{job.location}</span>
                       </span>
-                      <span className="hidden sm:inline text-white/10">•</span>
+                      <span className="hidden sm:inline opacity-30">•</span>
                       <span className="flex items-center gap-1 select-none">
-                        <Globe className="h-3.5 w-3.5 text-text-muted/60" />
+                        <Globe className="h-3.5 w-3.5 text-text-muted" />
                         <span>{job.sourceSite}</span>
                       </span>
                       {job.salary && job.salary !== 'Not Specified' && (
                         <>
-                          <span className="hidden sm:inline text-white/10">•</span>
-                          <span className="text-success font-semibold">{job.salary}</span>
+                          <span className="hidden sm:inline opacity-30">•</span>
+                          <span className="font-semibold text-success">{job.salary}</span>
                         </>
                       )}
                     </div>
 
-                    {/* Tags Chips & Stale Warning */}
                     <div className="flex flex-wrap items-center gap-1.5 pt-1 select-none">
                       {isStale && (
-                        <span className="text-[9px] font-extrabold px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20 animate-pulse flex items-center space-x-1">
+                        <span 
+                          className="text-[9px] font-extrabold px-2 py-0.5 rounded-lg border animate-pulse flex items-center space-x-1"
+                          style={{ background: 'rgba(245, 158, 11, 0.15)', color: 'var(--accent-signal)', borderColor: 'rgba(245, 158, 11, 0.3)' }}
+                        >
                           <AlertCircle className="h-2.5 w-2.5" />
                           <span>Follow Up Required</span>
                         </span>
@@ -445,7 +391,8 @@ export const TrackerView: React.FC = () => {
                       {job.tags && job.tags.map(tag => (
                         <span 
                           key={tag} 
-                          className="text-[9px] font-bold px-2 py-0.5 rounded bg-white/[0.03] text-text-muted border border-white/[0.05] flex items-center space-x-1"
+                          className="text-[9px] font-bold px-2 py-0.5 rounded-lg border flex items-center space-x-1"
+                          style={{ background: 'var(--bg-surface-raised)', color: 'var(--text-secondary)', borderColor: 'var(--border-subtle)' }}
                         >
                           <Tag className="h-2 w-2" />
                           <span>{tag}</span>
@@ -456,10 +403,9 @@ export const TrackerView: React.FC = () => {
                 </div>
 
                 {/* Status Selector & Actions */}
-                <div className="shrink-0 flex flex-row items-center gap-5 justify-between md:justify-end border-t border-white/[0.03] pt-4 md:pt-0 md:border-0">
-                  {/* Status Dropdown selector */}
+                <div className="shrink-0 flex flex-row items-center gap-5 justify-between md:justify-end border-t md:border-0 pt-4 md:pt-0" style={{ borderColor: 'var(--border-subtle)' }}>
                   <div className="flex flex-col gap-0.5">
-                    <label className="text-[9px] font-bold text-text-muted uppercase tracking-wider select-none">Pipeline Stage</label>
+                    <label className="text-[9px] font-bold uppercase tracking-wider select-none text-text-muted">Pipeline Stage</label>
                     <select
                       value={job.status}
                       onChange={async (e) => {
@@ -478,7 +424,7 @@ export const TrackerView: React.FC = () => {
                           });
                         }
                       }}
-                      className="border rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-cool font-extrabold cursor-pointer transition-all duration-200 select-none shadow-sm"
+                      className="border rounded-xl px-3 py-1.5 text-xs focus:outline-none font-extrabold cursor-pointer transition-all duration-200 select-none shadow-xs"
                       style={{
                         backgroundColor: theme.bg,
                         color: theme.text,
@@ -486,31 +432,28 @@ export const TrackerView: React.FC = () => {
                       }}
                     >
                       {COLUMNS.map((st) => (
-                        <option key={st} value={st} className="bg-surface-raised text-text-primary">
+                        <option key={st} value={st} style={{ background: 'var(--bg-surface-raised)', color: 'var(--text-primary)' }}>
                           {st}
                         </option>
                       ))}
                     </select>
                   </div>
 
-                  {/* Date Applied details */}
                   <div className="flex flex-col gap-0.5 text-right hidden lg:flex select-none">
-                    <span className="text-[9px] font-bold text-text-muted uppercase tracking-wider">Date Tracked</span>
-                    <span className="text-xs font-semibold text-text-primary/80 flex items-center space-x-1 justify-end">
-                      <Calendar className="h-3.5 w-3.5 text-text-muted/60" />
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-text-muted">Date Tracked</span>
+                    <span className="text-xs font-semibold text-text-primary flex items-center space-x-1 justify-end">
+                      <Calendar className="h-3.5 w-3.5 text-text-muted" />
                       <span className="tabular-nums">{job.dateApplied}</span>
                     </span>
                   </div>
 
-                  {/* Quick Action buttons */}
-                  <div className="flex items-center gap-1.5 ml-2 border-l border-white/[0.04] pl-4 self-stretch">
-                    {/* View external link if available */}
+                  <div className="flex items-center gap-1.5 ml-2 border-l pl-4 self-stretch" style={{ borderColor: 'var(--border-subtle)' }}>
                     {job.link && (
                       <a
                         href={job.link}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-2 hover:bg-white/5 rounded-xl text-text-muted hover:text-text-primary transition-colors cursor-pointer"
+                        className="p-2 hover:bg-surface-raised rounded-xl text-text-muted hover:text-text-primary transition-colors cursor-pointer"
                         title="Open job description link"
                       >
                         <ExternalLink className="h-3.5 w-3.5" />
@@ -518,7 +461,7 @@ export const TrackerView: React.FC = () => {
                     )}
                     <button
                       onClick={() => handleEditClick(job)}
-                      className="p-2 hover:bg-white/5 rounded-xl text-text-muted hover:text-text-primary transition-colors cursor-pointer"
+                      className="p-2 hover:bg-surface-raised rounded-xl text-text-muted hover:text-text-primary transition-colors cursor-pointer"
                       title="Edit Application"
                     >
                       <Edit2 className="h-3.5 w-3.5" />
@@ -532,7 +475,6 @@ export const TrackerView: React.FC = () => {
                     </button>
                   </div>
                 </div>
-
               </div>
             );
           })
@@ -546,10 +488,10 @@ export const TrackerView: React.FC = () => {
         jobToEdit={selectedJob} 
       />
 
-      {/* Premium custom delete confirmation dialog overlay */}
+      {/* Custom delete confirmation dialog overlay */}
       {deleteConfirmJob && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-void/70 backdrop-blur-sm animate-fade-in select-none">
-          <div className="bg-surface-raised border border-white/[0.08] rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in select-none">
+          <div className="fluent-card rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
             <div className="flex items-start space-x-3.5">
               <div className="p-2.5 bg-danger/10 text-danger rounded-xl shrink-0">
                 <AlertCircle className="h-5 w-5" />
@@ -564,7 +506,8 @@ export const TrackerView: React.FC = () => {
             <div className="flex justify-end space-x-3 pt-2">
               <button
                 onClick={() => setDeleteConfirmJob(null)}
-                className="px-4 py-2.5 bg-void hover:bg-white/5 border border-white/[0.04] text-text-primary font-semibold text-xs rounded-xl transition-all cursor-pointer"
+                className="px-4 py-2.5 border text-text-primary font-semibold text-xs rounded-xl transition-all cursor-pointer"
+                style={{ background: 'var(--bg-surface-raised)', borderColor: 'var(--border-subtle)' }}
               >
                 Cancel
               </button>
@@ -584,6 +527,6 @@ export const TrackerView: React.FC = () => {
         </div>
       )}
 
-    </div>
+    </>
   );
 };

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export type AppTab = 'tracker' | 'search' | 'settings';
+export type AppTheme = 'dark' | 'light' | 'system';
 
 export interface TrackerFilters {
   search: string;
@@ -16,6 +17,10 @@ interface UIStore {
   activeTab: AppTab;
   setActiveTab: (tab: AppTab) => void;
   
+  // Theme Management
+  theme: AppTheme;
+  setTheme: (theme: AppTheme) => void;
+
   // Tracker Filters
   filters: TrackerFilters;
   setFilters: (filters: Partial<TrackerFilters>) => void;
@@ -29,12 +34,28 @@ interface UIStore {
   setEnabledAdapters: (ids: string[]) => void;
 }
 
+export const applyThemeToDocument = (theme: AppTheme) => {
+  const root = document.documentElement;
+  if (theme === 'system') {
+    const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    root.setAttribute('data-theme', systemDark ? 'dark' : 'light');
+  } else {
+    root.setAttribute('data-theme', theme);
+  }
+};
+
 export const useUIStore = create<UIStore>()(
   persist(
     (set) => ({
       activeTab: 'search',
       setActiveTab: (tab) => set({ activeTab: tab }),
       
+      theme: 'dark',
+      setTheme: (theme) => {
+        applyThemeToDocument(theme);
+        set({ theme });
+      },
+
       filters: {
         search: '',
         status: 'all',
@@ -73,9 +94,9 @@ export const useUIStore = create<UIStore>()(
     }),
     {
       name: 'job-tracker-ui-store',
-      // Only persist settings and activeTab, filter state can reset
       partialize: (state) => ({
         activeTab: state.activeTab,
+        theme: state.theme,
         defaultReminderDays: state.defaultReminderDays,
         enabledAdapters: state.enabledAdapters,
       }),

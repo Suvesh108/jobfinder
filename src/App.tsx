@@ -1,33 +1,61 @@
-import { Navbar } from './components/Sidebar';
+import { useEffect } from 'react';
+import { Sidebar, MobileTopBar } from './components/Sidebar';
 import { TrackerView } from './components/TrackerView';
 import { SearchView } from './components/SearchView';
 import { SettingsView } from './components/SettingsView';
-import { useUIStore } from './store/useUIStore';
+import { useUIStore, applyThemeToDocument } from './store/useUIStore';
 
 export default function App() {
   const activeTab = useUIStore((state) => state.activeTab);
+  const theme     = useUIStore((state) => state.theme);
+
+  /* Apply theme to <html data-theme="..."> */
+  useEffect(() => {
+    applyThemeToDocument(theme);
+
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const onSystemChange = () => {
+      if (useUIStore.getState().theme === 'system') {
+        applyThemeToDocument('system');
+      }
+    };
+    mq.addEventListener('change', onSystemChange);
+    return () => mq.removeEventListener('change', onSystemChange);
+  }, [theme]);
+
 
   return (
-    <div className="relative flex flex-col h-screen w-screen bg-void text-text-primary overflow-hidden">
-      {/* Ambient Glow Orbs */}
-      <div className="absolute top-[-10%] left-[10%] w-[600px] h-[600px] rounded-full bg-[radial-gradient(circle,rgba(91,140,255,0.04)_0%,transparent_70%)] pointer-events-none blur-3xl animate-ambient-glow" />
-      <div className="absolute bottom-[-10%] right-[15%] w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,rgba(242,184,75,0.02)_0%,transparent_70%)] pointer-events-none blur-3xl" />
+    <div className="app-shell">
+      {/* ── Left Sidebar (desktop) ── */}
+      <Sidebar />
 
-      {/* ── TOP NAVBAR ── */}
-      <Navbar />
+      {/* ── Main Area ── */}
+      <div className="app-main">
 
-      {/* ── PAGE CONTENT ── */}
-      <main className="relative flex-1 min-h-0 bg-transparent z-10 flex">
-        <div className={`flex-1 flex flex-col min-h-0 overflow-hidden ${activeTab === 'search' ? '' : 'hidden'}`}>
+        {/* ── Mobile Top Bar (≤768px) ── */}
+        <MobileTopBar />
+
+        {/* ── Page Views ── */}
+        <div
+          className="page-container animate-fade-in"
+          style={{ display: activeTab === 'search' ? 'flex' : 'none' }}
+        >
           <SearchView />
         </div>
-        <div className={`flex-1 flex flex-col min-h-0 overflow-hidden ${activeTab === 'tracker' ? '' : 'hidden'}`}>
+        <div
+          className="page-container animate-fade-in"
+          style={{ display: activeTab === 'tracker' ? 'flex' : 'none' }}
+        >
           <TrackerView />
         </div>
-        <div className={`flex-1 flex flex-col min-h-0 overflow-hidden ${activeTab === 'settings' ? '' : 'hidden'}`}>
+        <div
+          className="page-container animate-fade-in"
+          style={{ display: activeTab === 'settings' ? 'flex' : 'none' }}
+        >
           <SettingsView />
         </div>
-      </main>
+
+      </div>
     </div>
   );
 }
