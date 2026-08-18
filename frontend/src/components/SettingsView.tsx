@@ -42,11 +42,14 @@ export const SettingsView: React.FC = () => {
   const [linkedinStatus, setLinkedinStatus] = React.useState<'checking' | 'running' | 'offline'>('checking');
 
   React.useEffect(() => {
-    fetch('http://127.0.0.1:8000/health')
+    const pythonUrl = (import.meta.env.VITE_PYTHON_BACKEND_URL as string)?.replace(/\/+$/, '') || 'http://127.0.0.1:8000';
+    const linkedinUrl = (import.meta.env.VITE_LINKEDIN_BACKEND_URL as string)?.replace(/\/+$/, '') || 'http://127.0.0.1:8001';
+
+    fetch(`${pythonUrl}/health`)
       .then(res => res.ok ? setJobspyStatus('running') : setJobspyStatus('offline'))
       .catch(() => setJobspyStatus('offline'));
 
-    fetch('http://127.0.0.1:8001/health')
+    fetch(`${linkedinUrl}/health`)
       .then(res => res.ok ? setLinkedinStatus('running') : setLinkedinStatus('offline'))
       .catch(() => setLinkedinStatus('offline'));
   }, []);

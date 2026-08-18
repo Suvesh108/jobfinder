@@ -29,6 +29,7 @@ const generateLinkedInMock = (query: string, location: string): JobListing[] => 
 
 const NODE_TIMEOUT_MS = 6 * 60 * 1000; // 6 minutes
 const RESULTS_WANTED = 200;
+const LINKEDIN_BACKEND_URL = (import.meta.env.VITE_LINKEDIN_BACKEND_URL as string)?.replace(/\/+$/, '') || 'http://127.0.0.1:8001';
 
 export const linkedinAdapter: JobAdapter = {
   id: 'linkedin',
@@ -40,8 +41,8 @@ export const linkedinAdapter: JobAdapter = {
     const cookie = localStorage.getItem('karmtrack_apify_token') || '';
 
     try {
-      console.log(`[Local Scraper] Querying Node scraper on port 8001 for LinkedIn: "${query}" in "${location}" (postedAfter: ${postedAfter}) — requesting ${RESULTS_WANTED} results`);
-      let url = `http://127.0.0.1:8001/search?query=${encodeURIComponent(query)}&location=${encodeURIComponent(location)}&results=${RESULTS_WANTED}&cookie=${encodeURIComponent(cookie)}`;
+      console.log(`[LinkedIn Scraper] Querying ${LINKEDIN_BACKEND_URL} for LinkedIn: "${query}" in "${location}" (postedAfter: ${postedAfter}) — requesting ${RESULTS_WANTED} results`);
+      let url = `${LINKEDIN_BACKEND_URL}/search?query=${encodeURIComponent(query)}&location=${encodeURIComponent(location)}&results=${RESULTS_WANTED}&cookie=${encodeURIComponent(cookie)}`;
       if (postedAfter) {
         url += `&postedAfter=${encodeURIComponent(postedAfter)}`;
       }

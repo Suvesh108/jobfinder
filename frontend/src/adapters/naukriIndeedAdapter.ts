@@ -73,6 +73,7 @@ const generateGlassdoorMock = (query: string, location: string): JobListing[] =>
 
 const PYTHON_TIMEOUT_MS = 8 * 60 * 1000; // 8 minutes — completeness over speed
 const RESULTS_WANTED = 200;
+const PYTHON_BACKEND_URL = (import.meta.env.VITE_PYTHON_BACKEND_URL as string)?.replace(/\/+$/, '') || 'http://127.0.0.1:8000';
 
 export const naukriAdapter: JobAdapter = {
   id: 'naukri',
@@ -82,8 +83,8 @@ export const naukriAdapter: JobAdapter = {
     const timeoutId = setTimeout(() => controller.abort(), PYTHON_TIMEOUT_MS);
 
     try {
-      console.log(`[Local Scraper] Querying Python scraper on port 8000 for Naukri: "${query}" in "${location}" (postedAfter: ${postedAfter}) — requesting ${RESULTS_WANTED} results`);
-      let url = `http://127.0.0.1:8000/search?query=${encodeURIComponent(query)}&location=${encodeURIComponent(location)}&sources=naukri&results=${RESULTS_WANTED}`;
+      console.log(`[Python Scraper] Querying ${PYTHON_BACKEND_URL} for Naukri: "${query}" in "${location}" (postedAfter: ${postedAfter}) — requesting ${RESULTS_WANTED} results`);
+      let url = `${PYTHON_BACKEND_URL}/search?query=${encodeURIComponent(query)}&location=${encodeURIComponent(location)}&sources=naukri&results=${RESULTS_WANTED}`;
       if (postedAfter) {
         url += `&postedAfter=${encodeURIComponent(postedAfter)}`;
       }
@@ -123,8 +124,8 @@ export const indeedAdapter: JobAdapter = {
     const timeoutId = setTimeout(() => controller.abort(), PYTHON_TIMEOUT_MS);
 
     try {
-      console.log(`[Local Scraper] Querying Python scraper on port 8000 for Indeed: "${query}" in "${location}" (postedAfter: ${postedAfter}) — requesting ${RESULTS_WANTED} results`);
-      let url = `http://127.0.0.1:8000/search?query=${encodeURIComponent(query)}&location=${encodeURIComponent(location)}&sources=indeed&results=${RESULTS_WANTED}`;
+      console.log(`[Python Scraper] Querying ${PYTHON_BACKEND_URL} for Indeed: "${query}" in "${location}" (postedAfter: ${postedAfter}) — requesting ${RESULTS_WANTED} results`);
+      let url = `${PYTHON_BACKEND_URL}/search?query=${encodeURIComponent(query)}&location=${encodeURIComponent(location)}&sources=indeed&results=${RESULTS_WANTED}`;
       if (postedAfter) {
         url += `&postedAfter=${encodeURIComponent(postedAfter)}`;
       }
@@ -142,7 +143,7 @@ export const indeedAdapter: JobAdapter = {
         return listings;
       }
 
-      console.warn('[Local Scraper] Indeed returned empty results, falling back to mock data.');
+      console.warn('[Python Scraper] Indeed returned empty results, falling back to mock data.');
       return generateIndeedMock(query, location);
     } catch (err) {
       clearTimeout(timeoutId);
@@ -164,8 +165,8 @@ export const glassdoorAdapter: JobAdapter = {
     const timeoutId = setTimeout(() => controller.abort(), PYTHON_TIMEOUT_MS);
 
     try {
-      console.log(`[Local Scraper] Querying Python scraper on port 8000 for Glassdoor: "${query}" in "${location}" (postedAfter: ${postedAfter}) — requesting ${RESULTS_WANTED} results`);
-      let url = `http://127.0.0.1:8000/search?query=${encodeURIComponent(query)}&location=${encodeURIComponent(location)}&sources=glassdoor&results=${RESULTS_WANTED}`;
+      console.log(`[Python Scraper] Querying ${PYTHON_BACKEND_URL} for Glassdoor: "${query}" in "${location}" (postedAfter: ${postedAfter}) — requesting ${RESULTS_WANTED} results`);
+      let url = `${PYTHON_BACKEND_URL}/search?query=${encodeURIComponent(query)}&location=${encodeURIComponent(location)}&sources=glassdoor&results=${RESULTS_WANTED}`;
       if (postedAfter) {
         url += `&postedAfter=${encodeURIComponent(postedAfter)}`;
       }

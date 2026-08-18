@@ -20,6 +20,7 @@ const generateInternshalaMock = (query: string, location: string): JobListing[] 
 // Timeout: 5 minutes — Internshala paginates up to 15 pages with 800ms delay each
 const INTERNSHALA_TIMEOUT_MS = 5 * 60 * 1000;
 const RESULTS_WANTED = 200;
+const NODE_BACKEND_URL = (import.meta.env.VITE_LINKEDIN_BACKEND_URL as string)?.replace(/\/+$/, '') || 'http://127.0.0.1:8001';
 
 export const internshalaAdapter: JobAdapter = {
   id: 'internshala',
@@ -29,8 +30,8 @@ export const internshalaAdapter: JobAdapter = {
     const timeoutId = setTimeout(() => controller.abort(), INTERNSHALA_TIMEOUT_MS);
 
     try {
-      console.log(`[Local Scraper] Querying Node scraper on port 8001 for Internshala: "${query}" in "${location}" (postedAfter: ${postedAfter}) — requesting ${RESULTS_WANTED} results`);
-      let url = `http://127.0.0.1:8001/search-internshala?query=${encodeURIComponent(query)}&location=${encodeURIComponent(location)}&results=${RESULTS_WANTED}&job_offer=false`;
+      console.log(`[Internshala Scraper] Querying ${NODE_BACKEND_URL} for Internshala: "${query}" in "${location}" (postedAfter: ${postedAfter}) — requesting ${RESULTS_WANTED} results`);
+      let url = `${NODE_BACKEND_URL}/search-internshala?query=${encodeURIComponent(query)}&location=${encodeURIComponent(location)}&results=${RESULTS_WANTED}&job_offer=false`;
       if (postedAfter) {
         url += `&postedAfter=${encodeURIComponent(postedAfter)}`;
       }
