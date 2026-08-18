@@ -7,12 +7,13 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Dependencies
+# Dependencies (Root, Frontend, & Backend Microservices)
 node_modules
-scraper-service-linkedin/node_modules
+**/node_modules
 
 # Build output
 dist
+**/dist
 dist-ssr
 
 # Environment & secrets — NEVER commit these
@@ -21,8 +22,7 @@ dist-ssr
 *.local
 
 # Python virtual environment & cache
-scraper-service-py/venv
-scraper-service-py/__pycache__
+**/venv
 **/__pycache__
 *.pyc
 *.pyo

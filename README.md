@@ -93,34 +93,29 @@ npm run preview
 
 ```
 jobfinder/
-├── src/
-│   ├── adapters/            # Multi-platform job scraper & API adapters
-│   │   ├── apify.ts
-│   │   ├── internshalaAdapter.ts
-│   │   ├── linkedinAdapter.ts
-│   │   ├── naukriIndeedAdapter.ts
-│   │   ├── types.ts
-│   │   └── index.ts
-│   ├── components/          # Core Application UI Components
-│   │   ├── ConfirmModal.tsx # Custom dark glass confirmation modal
-│   │   ├── JobCard.tsx
-│   │   ├── JobModal.tsx     # Full job details & status timeline modal
-│   │   ├── SearchView.tsx   # Search hub, role selector, & results engine
-│   │   ├── SettingsView.tsx # Platform toggles & database tools
-│   │   ├── Sidebar.tsx      # App navigation bar
-│   │   └── TrackerView.tsx  # High-density application tracker table
-│   ├── db/                  # Dexie IndexedDB schema & helpers
-│   │   └── schema.ts
-│   ├── store/               # Global Zustand UI & state stores
-│   │   └── useUIStore.ts
-│   ├── utils/               # Deduplication & helper functions
-│   │   ├── dedupeJobs.ts
-│   │   └── helpers.ts
-│   ├── App.tsx
-│   ├── index.css            # Fluent glassmorphism design system tokens
-│   └── main.tsx
-├── package.json
-└── vite.config.ts
+├── frontend/                     # React 19 + Vite Frontend Application
+│   ├── src/
+│   │   ├── adapters/            # Multi-platform job scraper & API adapters
+│   │   ├── components/          # Core UI Components & Modals
+│   │   ├── db/                  # Dexie IndexedDB schema & helpers
+│   │   ├── store/               # Global Zustand state stores
+│   │   ├── utils/               # Deduplication & helper utilities
+│   │   ├── App.tsx
+│   │   └── index.css            # Design system tokens & Tailwind CSS
+│   ├── index.html
+│   ├── package.json
+│   ├── vite.config.ts
+│   └── tsconfig.json
+├── backend/                      # Backend Scraper Microservices
+│   ├── scraper-service-py/       # Python FastAPI + JobSpy scraper (Port 8000)
+│   │   ├── main.py
+│   │   └── requirements.txt
+│   └── scraper-service-linkedin/ # Node.js LinkedIn scraper (Port 5000)
+│       ├── index.js
+│       └── package.json
+├── package.json                  # Root workspace runner scripts
+├── start_all.bat                 # Concurrent multi-service launcher
+└── vercel.json                   # Vercel deployment configuration
 ```
 
 ---
