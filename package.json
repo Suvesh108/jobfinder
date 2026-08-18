@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "cd frontend && npm run dev",
     "dev:frontend": "cd frontend && npm run dev",
-    "build": "cd frontend && npm run build",
+    "build": "cd frontend && npm install && npm run build",
+    "postinstall": "cd frontend && npm install",
     "lint": "cd frontend && npm run lint",
     "preview": "cd frontend && npm run preview",
     "scraper:jobspy": "cd backend/scraper-service-py && .\\venv\\Scripts\\uvicorn main:app --port 8000",
