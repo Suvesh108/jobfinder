@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: jobfinder-python-scraper
+    env: python
+    rootDir: backend/scraper-service-py
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port 8000
+    plan: free
+
+  - type: web
+    name: jobfinder-linkedin-scraper
+    env: node
+    rootDir: backend/scraper-service-linkedin
+    buildCommand: npm install
+    startCommand: node index.js
+    plan: free
