@@ -73,7 +73,8 @@ const generateGlassdoorMock = (query: string, location: string): JobListing[] =>
 
 const PYTHON_TIMEOUT_MS = 8 * 60 * 1000; // 8 minutes — completeness over speed
 const RESULTS_WANTED = 200;
-const PYTHON_BACKEND_URL = (import.meta.env.VITE_PYTHON_BACKEND_URL as string)?.replace(/\/+$/, '') || 'http://127.0.0.1:8000';
+const DEFAULT_PYTHON_URL = 'https://jobfinder-xgb9.onrender.com';
+const PYTHON_BACKEND_URL = (import.meta.env.VITE_PYTHON_BACKEND_URL as string)?.replace(/\/+$/, '') || DEFAULT_PYTHON_URL;
 
 export const naukriAdapter: JobAdapter = {
   id: 'naukri',
