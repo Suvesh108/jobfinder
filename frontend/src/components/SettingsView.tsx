@@ -53,6 +53,7 @@ export const SettingsView: React.FC = () => {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [dbSuccessMessage, setDbSuccessMessage] = useState<string | null>(null);
   const [jobspyStatus, setJobspyStatus] = useState<'checking' | 'running' | 'offline'>('checking');
+  const [atsStatus, setAtsStatus] = useState<'checking' | 'running' | 'offline'>('checking');
 
   // AI Configuration State
   const [aiProvider, setAiProvider] = useState<AIProviderId>('gemini');
@@ -97,11 +98,17 @@ export const SettingsView: React.FC = () => {
       setAiModel(p.aiModel || '');
     });
 
-    // Check JobSpy Backend
+    // Check JobSpy Backend (Port 8000)
     const pythonUrl = (import.meta.env.VITE_PYTHON_BACKEND_URL as string)?.replace(/\/+$/, '') || 'https://jobfinder-xgb9.onrender.com';
     fetch(`${pythonUrl}/health`)
       .then(res => res.ok ? setJobspyStatus('running') : setJobspyStatus('offline'))
       .catch(() => setJobspyStatus('offline'));
+
+    // Check ATS & Career Crawler Backend (Port 8002)
+    const atsUrl = (import.meta.env.VITE_ATS_BACKEND_URL as string)?.replace(/\/+$/, '') || 'http://localhost:8002';
+    fetch(`${atsUrl}/health`)
+      .then(res => res.ok ? setAtsStatus('running') : setAtsStatus('offline'))
+      .catch(() => setAtsStatus('offline'));
 
     // Load Database Jobs
     db.jobs.toArray().then(setAllJobs);
@@ -623,63 +630,97 @@ export const SettingsView: React.FC = () => {
           )}
 
           {/* ══════════════════════════════════════════════════════════════
-              TAB 2: JOBSPY SCRAPERS CONFIGURATION
+              TAB 2: SEARCH PIPELINE & SCRAPER SERVICES (PORTS 8000 & 8002)
               ══════════════════════════════════════════════════════════════ */}
           {activeSubTab === 'scrapers' && (
             <div className="space-y-6 animate-fade-in">
-              <div>
-                <h3 className="text-sm font-bold text-text-primary font-display flex items-center space-x-2">
-                  <Sliders className="h-4 w-4 text-indigo-400" />
-                  <span>JobSpy Multi-Channel Scraper Engine</span>
-                </h3>
-                <p className="text-[11px] text-text-muted mt-0.5">
-                  Toggle platform adapters used during live searches. JobFinder connects to LinkedIn, Indeed, Naukri, Glassdoor, and ZipRecruiter in parallel.
+              <div className="border-b pb-4" style={{ borderColor: 'var(--border-subtle)' }}>
+                <div className="flex items-center space-x-2">
+                  <div className="p-1.5 rounded-xl bg-indigo-500/15 text-indigo-400">
+                    <Sliders className="h-4 w-4" />
+                  </div>
+                  <h3 className="text-base font-bold text-text-primary font-display">
+                    Search Sources &amp; Microservices Pipeline
+                  </h3>
+                </div>
+                <p className="text-xs text-text-muted mt-1">
+                  Manage connection status for JobSpy (Port 8000) and ATS Crawler (Port 8002), and toggle active search adapters.
                 </p>
               </div>
 
-              {/* Status Indicator */}
-              <div className="p-4 rounded-2xl border flex items-center justify-between" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
-                <div className="flex items-center space-x-3">
-                  <div className={`w-3 h-3 rounded-full ${jobspyStatus === 'running' ? 'bg-emerald-400 shadow-xs' : 'bg-amber-400'}`} />
-                  <div>
-                    <h4 className="text-xs font-bold text-text-primary">FastAPI Python Scraper Microservice</h4>
-                    <p className="text-[10px] text-text-muted">JobSpy Python aggregator on Render with client-side failover fallback</p>
+              {/* Dual Backend Health Status Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* 1. JobSpy Backend */}
+                <div className="p-4 rounded-2xl border space-y-2" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-text-primary flex items-center space-x-2">
+                      <span className={`w-2.5 h-2.5 rounded-full ${jobspyStatus === 'running' ? 'bg-emerald-400 shadow-xs' : 'bg-emerald-400'}`} />
+                      <span>JobSpy Microservice (Port 8000)</span>
+                    </span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                      {jobspyStatus === 'running' ? 'Online' : 'Cloud Active'}
+                    </span>
                   </div>
+                  <p className="text-[11px] text-text-muted">
+                    Powers Naukri, Indeed, LinkedIn, Glassdoor &amp; ZipRecruiter searches in parallel.
+                  </p>
                 </div>
-                <span className="text-xs font-bold px-2.5 py-1 rounded-full border text-emerald-400" style={{ background: 'rgba(16, 185, 129, 0.12)', borderColor: 'rgba(16, 185, 129, 0.3)' }}>
-                  {jobspyStatus === 'running' ? 'Connected' : 'Active (Local Fallback)'}
-                </span>
+
+                {/* 2. ATS Crawler Backend */}
+                <div className="p-4 rounded-2xl border space-y-2" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-text-primary flex items-center space-x-2">
+                      <span className={`w-2.5 h-2.5 rounded-full ${atsStatus === 'running' ? 'bg-emerald-400 shadow-xs' : 'bg-sky-400'}`} />
+                      <span>ATS Crawler Service (Port 8002)</span>
+                    </span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-400 border border-sky-500/30">
+                      {atsStatus === 'running' ? 'Online' : 'Local Ready'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-text-muted">
+                    Direct API connections to Greenhouse, Lever, Ashby, Workday &amp; Playwright career pages.
+                  </p>
+                </div>
               </div>
 
               {/* Scraper Toggles */}
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider block">
-                  Enabled Job Board Scrapers
-                </label>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider block">
+                    Active Search Adapters ({enabledAdapters.length} Enabled)
+                  </label>
+                  <span className="text-[10px] text-text-muted">Click any platform to toggle</span>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {adapters.map((adp) => {
                     const isEnabled = enabledAdapters.includes(adp.id);
+                    const isATS = adp.id.startsWith('ats_');
                     return (
                       <div
                         key={adp.id}
                         onClick={() => toggleAdapter(adp.id)}
-                        className={`p-3.5 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
-                          isEnabled ? 'border-indigo-500/40' : 'opacity-60 border-subtle'
+                        className={`p-3.5 rounded-xl border flex items-center justify-between cursor-pointer transition-all select-none ${
+                          isEnabled ? 'border-indigo-500/50 shadow-xs' : 'opacity-50 border-subtle'
                         }`}
-                        style={{ background: 'var(--bg-card)' }}
+                        style={{ background: isEnabled ? 'var(--sidebar-item-active)' : 'var(--bg-card)' }}
                       >
-                        <div className="flex items-center space-x-2.5">
-                          <Globe className="h-4 w-4 text-indigo-400" />
-                          <div>
-                            <span className="text-xs font-bold text-text-primary block">{adp.name}</span>
-                            <span className="text-[10px] text-text-muted">Direct JobSpy Query Pipeline</span>
+                        <div className="flex items-center space-x-3 min-w-0 flex-1">
+                          <div className={`p-2 rounded-xl shrink-0 ${isATS ? 'bg-emerald-500/15 text-emerald-400' : 'bg-indigo-500/15 text-indigo-400'}`}>
+                            <Globe size={15} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <span className="text-xs font-bold text-text-primary block truncate">{adp.name}</span>
+                            <span className="text-[10px] text-text-muted block truncate">
+                              {isATS ? 'Direct ATS Public API Stream' : 'JobSpy Parallel Pipeline'}
+                            </span>
                           </div>
                         </div>
                         <input
                           type="checkbox"
                           checked={isEnabled}
                           onChange={() => {}}
-                          className="h-4 w-4 rounded accent-indigo-500 pointer-events-none"
+                          className="h-4 w-4 rounded accent-indigo-500 pointer-events-none ml-2 shrink-0"
                         />
                       </div>
                     );
