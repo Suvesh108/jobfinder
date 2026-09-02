@@ -9,7 +9,7 @@ export interface ReleaseInfo {
   htmlUrl: string;
 }
 
-export const CURRENT_APP_VERSION = 'v1.1.6';
+export const CURRENT_APP_VERSION = 'v1.1.7';
 
 export async function fetchLatestRelease(): Promise<ReleaseInfo | null> {
   try {
@@ -40,7 +40,7 @@ export async function fetchLatestRelease(): Promise<ReleaseInfo | null> {
     return {
       tag: CURRENT_APP_VERSION,
       name: `JobFinder ${CURRENT_APP_VERSION}`,
-      body: 'Latest stable release with in-app OTA installer and fast parallel portal scanner.',
+      body: 'Latest stable release with in-app native OTA installer and fast parallel portal scanner.',
       publishedAt: new Date().toISOString(),
       apkDownloadUrl: `https://github.com/Suvesh108/jobfinder/releases/download/${CURRENT_APP_VERSION}/JobFinder-${CURRENT_APP_VERSION}.apk`,
       apkFileName: `JobFinder-${CURRENT_APP_VERSION}.apk`,
@@ -70,11 +70,34 @@ export async function fetchJobSpyVersion(): Promise<{ installed: string; latest:
   }
 }
 
+/**
+ * Downloads and triggers package installation 100% inside the app without opening Chrome.
+ */
 export async function downloadApkInternally(
   downloadUrl: string,
   fileName: string,
   onProgress?: (progress: number, loadedMb: string, totalMb: string) => void
 ): Promise<{ success: boolean; blobUrl?: string }> {
+  // If running inside Android native container, use the NativeUpdater interface
+  if (typeof (window as any).NativeUpdater?.downloadAndInstall === 'function') {
+    return new Promise((resolve) => {
+      (window as any).__onNativeUpdateProgress = (pct: number, loaded: string, total: string) => {
+        if (onProgress) onProgress(pct, loaded, total);
+      };
+      (window as any).__onNativeUpdateComplete = () => {
+        if (onProgress) onProgress(100, '4.9', '4.9');
+        resolve({ success: true });
+      };
+      (window as any).__onNativeUpdateError = (err: string) => {
+        console.error('[NativeUpdater Error]', err);
+        resolve({ success: false });
+      };
+
+      (window as any).NativeUpdater.downloadAndInstall(downloadUrl, fileName);
+    });
+  }
+
+  // Fallback in web/desktop environment
   try {
     const response = await fetch(downloadUrl);
     if (!response.ok) throw new Error(`HTTP error ${response.status}`);
@@ -109,28 +132,17 @@ export async function downloadApkInternally(
 
     if (onProgress) onProgress(100, (totalBytes / (1024 * 1024)).toFixed(1), (totalBytes / (1024 * 1024)).toFixed(1));
 
-    // Create object URL and trigger internal Android installer prompt
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = blobUrl;
     a.download = fileName;
     document.body.appendChild(a);
     a.click();
-    
-    setTimeout(() => {
-      a.remove();
-    }, 2000);
+    setTimeout(() => a.remove(), 2000);
 
     return { success: true, blobUrl };
   } catch (err) {
-    console.error('[Updater] Internal download fallback:', err);
-    const a = document.createElement('a');
-    a.href = downloadUrl;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => a.remove(), 2000);
-
-    return { success: true };
+    console.error('[Updater] Download error:', err);
+    return { success: false };
   }
 }
