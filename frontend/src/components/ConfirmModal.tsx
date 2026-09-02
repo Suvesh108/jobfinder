@@ -28,11 +28,11 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   const isDanger = variant === 'danger';
 
   return createPortal(
-    <div className="fixed inset-0 z-[10000] bg-black/75 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-[10000] bg-black/70 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
       <div 
-        className="fluent-card w-full max-w-md rounded-3xl p-6 border shadow-2xl space-y-5 animate-in zoom-in-95 duration-200"
+        className="card w-full max-w-md rounded-2xl p-6 border shadow-2xl space-y-5"
         style={{
-          background: 'var(--bg-surface-raised)',
+          background: 'var(--bg-card)',
           borderColor: isDanger ? 'rgba(239, 68, 68, 0.3)' : 'var(--border-subtle)',
           boxShadow: isDanger 
             ? '0 20px 50px -10px rgba(239, 68, 68, 0.25)' 
@@ -45,17 +45,17 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
             className="p-3 rounded-2xl shrink-0 flex items-center justify-center border shadow-xs"
             style={{
               background: isDanger 
-                ? 'linear-gradient(135deg, rgba(239,68,68,0.2) 0%, rgba(220,38,38,0.1) 100%)' 
-                : 'linear-gradient(135deg, rgba(91,140,255,0.2) 0%, rgba(59,130,246,0.1) 100%)',
-              borderColor: isDanger ? 'rgba(239,68,68,0.4)' : 'rgba(91,140,255,0.4)',
-              color: isDanger ? '#EF4444' : 'var(--accent-cool)',
+                ? 'rgba(239,68,68,0.12)' 
+                : 'rgba(99,102,241,0.12)',
+              borderColor: isDanger ? 'rgba(239,68,68,0.3)' : 'rgba(99,102,241,0.3)',
+              color: isDanger ? 'var(--status-danger)' : 'var(--accent-primary)',
             }}
           >
             {isDanger ? <AlertTriangle className="h-6 w-6" /> : <Check className="h-6 w-6" />}
           </div>
 
           <div className="space-y-1 min-w-0 flex-1 pt-0.5">
-            <h3 className="text-base font-extrabold text-text-primary font-display leading-snug">
+            <h3 className="text-base font-bold text-text-primary font-display leading-snug">
               {title}
             </h3>
             <p className="text-xs text-text-muted leading-relaxed">
@@ -65,11 +65,11 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
         </div>
 
         {/* Actions Row */}
-        <div className="flex items-center justify-end space-x-3 pt-2 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+        <div className="flex items-center justify-end space-x-3 pt-3 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
           <button
             type="button"
             onClick={onCancel}
-            className="btn-secondary px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer"
+            className="btn-secondary px-5 py-2 rounded-xl text-xs font-semibold"
           >
             <X size={14} />
             <span>{cancelText}</span>
@@ -78,14 +78,11 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           <button
             type="button"
             onClick={onConfirm}
-            className="font-extrabold text-xs px-6 py-2.5 rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center space-x-2 cursor-pointer text-white"
+            className="btn-primary text-xs px-6 py-2 rounded-xl"
             style={{
               background: isDanger 
                 ? 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)' 
-                : 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
-              boxShadow: isDanger 
-                ? '0 4px 14px rgba(239, 68, 68, 0.4)' 
-                : '0 4px 14px rgba(59, 130, 246, 0.4)',
+                : 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
             }}
           >
             {isDanger ? <Trash2 size={14} /> : <Check size={14} />}
@@ -97,3 +94,4 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
     document.body
   );
 };
+

@@ -4,6 +4,8 @@ import { db, type JobApplication, type JobStatus } from '../db/schema';
 import { useUIStore } from '../store/useUIStore';
 import { adapters, type JobListing } from '../adapters';
 import { dedupeJobs } from '../utils/dedupeJobs';
+import { AITailorModal } from './AITailorModal';
+import { TailoredResumeModal } from './TailoredResumeModal';
 import { 
   Search, 
   MapPin, 
@@ -12,11 +14,10 @@ import {
   Bookmark, 
   BookmarkCheck, 
   Clock, 
-  FilterX,
   ChevronDown,
   Square,
-  ArrowLeft,
-  CheckCircle2
+  Sparkles,
+  FileText
 } from 'lucide-react';
 
 // ─── All Indian States, UTs & Major Cities ───────────────────────────────────
@@ -297,6 +298,7 @@ const CustomFilterSelect: React.FC<CustomFilterSelectProps> = ({
 
   const selectedOption = options.find(o => o.value === value);
   const selectedLabel = selectedOption ? selectedOption.label : placeholder;
+  const isCustomized = value !== 'all' && value !== '';
 
   return (
     <div id={id} ref={containerRef} className="relative flex-1 min-w-[130px]">
@@ -305,9 +307,9 @@ const CustomFilterSelect: React.FC<CustomFilterSelectProps> = ({
         onClick={() => setIsOpen(prev => !prev)}
         className="w-full px-3.5 py-2.5 rounded-xl border flex items-center justify-between text-xs font-semibold cursor-pointer transition-all duration-150"
         style={{
-          background: 'var(--input-bg)',
-          borderColor: isOpen ? 'var(--accent-cool)' : 'var(--border-subtle)',
-          color: 'var(--text-primary)',
+          background: isCustomized ? 'var(--bg-surface-raised)' : 'var(--bg-input)',
+          borderColor: isOpen ? 'var(--accent-primary)' : isCustomized ? 'var(--border-highlight)' : 'var(--border-subtle)',
+          color: isCustomized ? 'var(--accent-primary)' : 'var(--text-primary)',
         }}
       >
         <span className="truncate">{selectedLabel}</span>
@@ -316,12 +318,12 @@ const CustomFilterSelect: React.FC<CustomFilterSelectProps> = ({
 
       {isOpen && (
         <div
-          className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl border shadow-2xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-150"
+          className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-xl border shadow-2xl overflow-hidden py-1 animate-fade-in"
           style={{
-            background: 'var(--bg-surface-raised)',
+            background: 'var(--bg-surface)',
             borderColor: 'var(--border-subtle)',
-            minWidth: '150px',
-            boxShadow: '0 12px 30px rgba(0, 0, 0, 0.45)',
+            minWidth: '160px',
+            boxShadow: 'var(--shadow-xl)',
           }}
         >
           {options.map(opt => {
@@ -333,26 +335,24 @@ const CustomFilterSelect: React.FC<CustomFilterSelectProps> = ({
                   onChange(opt.value);
                   setIsOpen(false);
                 }}
-                className="px-4 py-2.5 text-xs font-semibold cursor-pointer transition-colors duration-150 flex items-center justify-between"
+                className="px-3.5 py-2 text-xs font-semibold cursor-pointer transition-colors duration-150 flex items-center justify-between"
                 style={{
-                  background: isSelected ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
-                  color: isSelected ? '#FFFFFF' : 'var(--text-secondary)',
+                  background: isSelected ? 'var(--sidebar-item-active)' : 'transparent',
+                  color: isSelected ? 'var(--accent-primary)' : 'var(--text-primary)',
                 }}
                 onMouseEnter={e => {
                   if (!isSelected) {
-                    (e.currentTarget as HTMLElement).style.background = 'rgba(255, 255, 255, 0.08)';
-                    (e.currentTarget as HTMLElement).style.color = '#FFFFFF';
+                    (e.currentTarget as HTMLElement).style.background = 'var(--bg-surface-raised)';
                   }
                 }}
                 onMouseLeave={e => {
                   if (!isSelected) {
                     (e.currentTarget as HTMLElement).style.background = 'transparent';
-                    (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)';
                   }
                 }}
               >
                 <span>{opt.label}</span>
-                {isSelected && <span className="text-[11px] font-bold text-cool">✓</span>}
+                {isSelected && <span className="text-[11px] font-bold text-primary">✓</span>}
               </div>
             );
           })}
@@ -388,7 +388,7 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
   placeholder,
   icon,
   groups,
-  accentColor = 'var(--accent-cool)',
+  accentColor = 'var(--accent-primary)',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [filterText, setFilterText] = useState('');
@@ -419,8 +419,8 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
     <div id={id} ref={containerRef} className="relative flex-1 min-w-[200px]">
       <div
         onClick={() => setIsOpen(prev => !prev)}
-        className="fluent-card rounded-xl px-3.5 py-2.5 flex items-center justify-between cursor-pointer border transition-all"
-        style={{ borderColor: 'var(--border-subtle)', background: 'var(--input-bg)' }}
+        className="card rounded-xl px-3.5 py-2.5 flex items-center justify-between cursor-pointer border transition-all"
+        style={{ borderColor: isOpen ? 'var(--accent-primary)' : 'var(--border-subtle)', background: 'var(--bg-input)' }}
       >
         <div className="flex items-center space-x-2.5 min-w-0 flex-1">
           <span className="text-text-muted shrink-0">{icon}</span>
@@ -431,8 +431,8 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
                 {values.map(val => (
                   <span
                     key={val}
-                    className="text-[10px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1"
-                    style={{ background: 'rgba(91,140,255,0.15)', color: accentColor, border: '1px solid rgba(91,140,255,0.25)' }}
+                    className="text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1"
+                    style={{ background: 'var(--sidebar-item-active)', color: accentColor, border: '1px solid var(--border-glow)' }}
                   >
                     <span>{val}</span>
                     <span
@@ -461,7 +461,7 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
               }}
               onFocus={() => setIsOpen(true)}
               placeholder={placeholder}
-              className="bg-transparent border-none outline-none focus:outline-none focus:ring-0 focus:border-none text-xs font-semibold text-text-primary w-full placeholder-text-muted shadow-none"
+              className="bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-xs font-semibold text-text-primary w-full placeholder-text-muted shadow-none"
             />
           )}
         </div>
@@ -485,8 +485,8 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
 
       {isOpen && (
         <div
-          className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-2xl p-3 border shadow-2xl space-y-3 max-h-72 overflow-y-auto animate-in fade-in zoom-in-95 duration-150"
-          style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}
+          className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-2xl p-3 border shadow-2xl space-y-3 max-h-72 overflow-y-auto animate-fade-in"
+          style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)', boxShadow: 'var(--shadow-xl)' }}
         >
           <div className="px-1">
             <input
@@ -495,7 +495,7 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
               onChange={e => setFilterText(e.target.value)}
               placeholder="Type to filter options..."
               className="w-full px-3 py-1.5 rounded-lg text-xs font-medium text-text-primary outline-none border"
-              style={{ background: 'var(--input-bg)', borderColor: 'var(--border-subtle)' }}
+              style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
               onClick={e => e.stopPropagation()}
             />
           </div>
@@ -525,7 +525,7 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
                         }}
                         className="px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center justify-between"
                         style={{
-                          background: isSelected ? 'rgba(91,140,255,0.15)' : 'transparent',
+                          background: isSelected ? 'var(--sidebar-item-active)' : 'transparent',
                           color: isSelected ? accentColor : 'var(--text-primary)',
                         }}
                       >
@@ -574,13 +574,11 @@ export const SearchView: React.FC = () => {
   const [jobMode, setJobMode] = useState<'tech' | 'nontech'>('tech');
   
   // Navigation & Progress States
-  const [viewPage, setViewPage] = useState<'search_form' | 'search_results'>('search_form');
-  const [searchProgress, setSearchProgress] = useState<number>(0);
+    const [searchProgress, setSearchProgress] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [results, setResults] = useState<JobListing[]>([]);
-  const [activeSearches, setActiveSearches] = useState<string[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
+    const [currentPage, setCurrentPage] = useState(1);
 
   const handleDateOptionChange = (option: string) => {
     setDateOption(option);
@@ -597,7 +595,6 @@ export const SearchView: React.FC = () => {
 
   // Per-source raw counts and pipeline stats
   const [sourceCounts, setSourceCounts] = useState<Record<string, number>>({});
-  const [pipelineStats, setPipelineStats] = useState<{raw: number; afterDedup: number; afterFilters: number} | null>(null);
   const [loadingPhase, setLoadingPhase] = useState<string>('');
 
   const activeRoleGroups = jobMode === 'tech' ? TECH_ROLES : NON_TECH_ROLES;
@@ -639,6 +636,8 @@ export const SearchView: React.FC = () => {
   const searchCacheRef = useRef<Map<string, JobListing[]>>(new Map());
   const isAbortedRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const [tailorModalJob, setTailorModalJob] = useState<{ company: string; role: string; location?: string; description?: string } | null>(null);
+  const [resumeModalJob, setResumeModalJob] = useState<JobApplication | null>(null);
 
   const handleStopSearch = () => {
     isAbortedRef.current = true;
@@ -666,8 +665,7 @@ export const SearchView: React.FC = () => {
   ) => {
     if (rawJobs.length === 0) {
       setResults([]);
-      setPipelineStats(null);
-      return;
+        return;
     }
 
     const dedupedResults = dedupeJobs(rawJobs);
@@ -768,8 +766,7 @@ export const SearchView: React.FC = () => {
       });
     }
 
-    setPipelineStats({ raw: rawJobs.length, afterDedup: dedupedResults.length, afterFilters: sortedResults.length });
-    setResults(sortedResults);
+        setResults(sortedResults);
   }, []);
 
   // Filter re-execution
@@ -779,8 +776,8 @@ export const SearchView: React.FC = () => {
     }
   }, [rawListings, postedAfter, experienceLevel, workMode, jobType, minSalary, companyTier, runPipeline]);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    if (e) e.preventDefault();
+  const handleSearch = async (e?: React.FormEvent) => {
+    if (e)     if (e) e.preventDefault();
     if (selectedRoles.length === 0) {
       alert('Please select at least one role from the dropdown.');
       return;
@@ -799,11 +796,9 @@ export const SearchView: React.FC = () => {
     setHasSearched(true);
     setCurrentPage(1);
     setSourceCounts({});
-    setPipelineStats(null);
-    setSearchProgress(10);
-    setViewPage('search_results'); // Redirect to dedicated results page
+        setSearchProgress(10);
+    // Keep unified view // Redirect to dedicated results page
     setLoadingPhase(`Scanning across ${activeAdapters.length} active platforms...`);
-    setActiveSearches(activeAdapters.map(a => a.name));
 
     // Check cache
     const cacheKey = `${jobMode}:${selectedRoles.sort().join(',')}:${locQuery}:${postedAfter}`;
@@ -937,561 +932,528 @@ export const SearchView: React.FC = () => {
   };
 
   return (
-    <>
-      {viewPage === 'search_form' ? (
-        /* ═══════════════════════════════════════════════════════════════════
-           PAGE 1: SEARCH QUERY FORM HUB
-           ═══════════════════════════════════════════════════════════════════ */
-        <>
-          {/* ── Page Header ── */}
-          <div className="page-header" style={{ flexShrink: 0 }}>
-            <div className="page-header-row">
-              <div className="page-title-group">
-                <span
-                  className="page-eyebrow"
-                  style={{ background: 'rgba(59,130,246,0.1)', color: 'var(--accent-cool)', border: '1px solid rgba(59,130,246,0.2)' }}
-                >
-                  <Search size={11} />
-                  Real-Time Discovery Engine
-                </span>
-                <h1 className="page-title">Job Search Hub</h1>
-                <p className="page-subtitle">
-                  Configure target roles and location to scan across platforms in parallel.
+    <div className="page-content w-full max-w-full px-3 sm:px-8 py-3 sm:py-6 pb-24 sm:pb-10 overflow-y-auto overflow-x-hidden flex flex-col gap-4">
+      <div className="w-full max-w-6xl mx-auto space-y-6">
+        
+        {/* ══════════════════════════════════════════════════════════════
+            HERO COMMAND CENTER: SEARCH BAR & PRESET FILTERS
+            ══════════════════════════════════════════════════════════════ */}
+        <div 
+          className="card p-6 space-y-5 shadow-2xl border transition-all duration-300 relative overflow-hidden"
+          style={{
+            background: 'var(--bg-card)',
+            borderColor: jobMode === 'tech' ? 'rgba(6, 182, 212, 0.35)' : 'rgba(245, 158, 11, 0.35)',
+            boxShadow: '0 20px 45px -10px rgba(0, 0, 0, 0.45), 0 0 25px rgba(6, 182, 212, 0.08)'
+          }}
+        >
+          {/* Top Row: Title & Target Industry Toggle */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
+            <div className="flex items-center space-x-2.5">
+              <div className="p-2 rounded-xl bg-cyan-500/15 text-cyan-400">
+                <Search size={18} />
+              </div>
+              <div>
+                <h2 className="text-sm sm:text-base font-bold text-text-primary font-display">
+                  Global Job Search &amp; Aggregator
+                </h2>
+                <p className="text-[11px] text-text-muted">
+                  Scrapes Naukri, Indeed, LinkedIn, Glassdoor &amp; ZipRecruiter in parallel
                 </p>
               </div>
+            </div>
 
-              {hasSearched && untrackedResults.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setViewPage('search_results')}
-                  className="btn-primary flex items-center space-x-2"
-                  style={{ background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)' }}
-                >
-                  <span>View Search Results ({untrackedResults.length}) →</span>
-                </button>
-              )}
+            {/* Tech vs Non-Tech Segmented Toggle */}
+            <div className="flex p-1 rounded-xl border relative select-none w-full sm:w-72" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}>
+              <div 
+                className="absolute top-1 bottom-1 rounded-lg transition-all duration-200"
+                style={{
+                  left: jobMode === 'tech' ? '4px' : 'calc(50% - 2px)',
+                  width: 'calc(50% - 2px)',
+                  background: jobMode === 'tech' 
+                    ? 'var(--sidebar-item-active)' 
+                    : 'rgba(245, 158, 11, 0.12)',
+                  border: jobMode === 'tech'
+                    ? '1px solid var(--border-glow)'
+                    : '1px solid rgba(245, 158, 11, 0.3)',
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setJobMode('tech')}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg relative z-10 transition-colors cursor-pointer ${jobMode === 'tech' ? 'text-primary font-extrabold' : 'text-text-muted'}`}
+              >
+                ⚡ Tech &amp; Engineering
+              </button>
+              <button
+                type="button"
+                onClick={() => setJobMode('nontech')}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg relative z-10 transition-colors cursor-pointer ${jobMode === 'nontech' ? 'text-amber-500 font-extrabold' : 'text-text-muted'}`}
+              >
+                💼 Business &amp; Ops
+              </button>
             </div>
           </div>
 
-          {/* ── Search Hub Form Body ── */}
-          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '16px 28px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-            
-            <div 
-              className="fluent-card rounded-2xl p-6 space-y-5 shrink-0 transition-all duration-300"
-              style={{
-                borderColor: jobMode === 'tech' ? 'rgba(59, 130, 246, 0.25)' : 'rgba(245, 158, 11, 0.25)',
-                boxShadow: jobMode === 'tech' 
-                  ? '0 12px 30px -10px rgba(59, 130, 246, 0.15)'
-                  : '0 12px 30px -10px rgba(245, 158, 11, 0.15)'
-              }}
-            >
-              {/* Discovery Mode Switcher */}
-              <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-4">
-                <div className="w-full md:w-80">
-                  <label className="text-[9px] font-bold text-text-muted uppercase tracking-wider block mb-1.5">
-                    Discovery Mode
-                  </label>
-                  <div className="flex p-1 rounded-xl border relative select-none" style={{ background: 'var(--input-bg)', borderColor: 'var(--border-subtle)' }}>
-                    <div 
-                      className="absolute top-1 bottom-1 rounded-lg transition-all duration-200"
-                      style={{
-                        left: jobMode === 'tech' ? '4px' : 'calc(50% - 2px)',
-                        width: 'calc(50% - 2px)',
-                        background: jobMode === 'tech' 
-                          ? 'rgba(91,140,255,0.12)' 
-                          : 'rgba(242,184,75,0.1)',
-                        border: jobMode === 'tech'
-                          ? '1px solid rgba(91,140,255,0.25)'
-                          : '1px solid rgba(242,184,75,0.2)',
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setJobMode('tech')}
-                      className={`flex-1 py-1.5 text-xs font-bold rounded-lg relative z-10 transition-colors ${jobMode === 'tech' ? 'text-cool' : 'text-text-muted'}`}
-                    >
-                      ⚡ Tech Roles
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setJobMode('nontech')}
-                      className={`flex-1 py-1.5 text-xs font-bold rounded-lg relative z-10 transition-colors ${jobMode === 'nontech' ? 'text-amber-400' : 'text-text-muted'}`}
-                    >
-                      💼 Non-Tech Roles
-                    </button>
-                  </div>
-                </div>
+          {/* Search Inputs: Roles + Location + Scan Button */}
+          <form onSubmit={handleSearch} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-[1.4fr_1.1fr_auto] gap-3 items-center">
+              <AutocompleteInput
+                id="role-input"
+                multi
+                values={selectedRoles}
+                onToggle={handleRoleToggle}
+                onClearAll={() => setSelectedRoles([])}
+                placeholder="Select Target Roles (e.g. Software Engineer, Tech Support)..."
+                icon={<Briefcase className="h-4 w-4" />}
+                groups={activeRoleGroups}
+                accentColor={accentColor}
+              />
 
-                <div className="text-right hidden md:block">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-text-muted block">Active Sources</span>
-                  <span className="text-xs font-bold text-text-primary">
-                    {enabledAdapters.length} Sources Enabled in Settings
+              <AutocompleteInput
+                id="location-input"
+                value={locQuery}
+                onChange={setLocQuery}
+                placeholder="Location (e.g. Remote, Bengaluru, Pune, Mumbai)"
+                icon={<MapPin className="h-4 w-4" />}
+                groups={INDIAN_LOCATIONS}
+              />
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="btn-primary px-6 py-2.5 text-xs font-bold flex items-center justify-center space-x-2 shrink-0 h-[42px] cursor-pointer shadow-lg"
+              >
+                <Search className="h-4 w-4" />
+                <span>{isLoading ? 'Scanning...' : 'Search Jobs'}</span>
+              </button>
+            </div>
+
+            {/* Quick Filter Selects Ribbon */}
+            <div className="pt-2 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
+                <CustomFilterSelect
+                  value={dateOption}
+                  onChange={handleDateOptionChange}
+                  options={DATE_OPTIONS}
+                  placeholder="All Dates"
+                />
+
+                <CustomFilterSelect
+                  value={experienceLevel}
+                  onChange={setExperienceLevel}
+                  options={EXPERIENCE_OPTIONS}
+                  placeholder="All Experience"
+                />
+
+                <CustomFilterSelect
+                  value={workMode}
+                  onChange={setWorkMode}
+                  options={WORK_MODE_OPTIONS}
+                  placeholder="All Modes"
+                />
+
+                <CustomFilterSelect
+                  value={jobType}
+                  onChange={setJobType}
+                  options={JOB_TYPE_OPTIONS}
+                  placeholder="All Types"
+                />
+
+                <CustomFilterSelect
+                  value={minSalary}
+                  onChange={setMinSalary}
+                  options={SALARY_OPTIONS}
+                  placeholder="Min Salary"
+                />
+
+                <CustomFilterSelect
+                  value={companyTier}
+                  onChange={setCompanyTier}
+                  options={TIER_OPTIONS}
+                  placeholder="Company Tier"
+                />
+              </div>
+            </div>
+          </form>
+
+          {/* Quick Preset Filter Chips */}
+          <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
+            <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider mr-1">Popular:</span>
+            {[
+              { label: '🌐 Remote Only', role: 'Software Engineer / Full Stack Developer', loc: 'Remote' },
+              { label: '📍 Bengaluru Tech Hub', role: 'Software Engineer / Full Stack Developer', loc: 'Bengaluru, Karnataka' },
+              { label: '🛠️ Technical Support', role: 'Technical Support / IT Support Specialist', loc: 'India (Remote)' },
+              { label: '🎓 Fresher Friendly', role: 'Frontend / React / Angular Developer', loc: 'Remote' },
+              { label: '📍 Pune', role: 'Backend / Node.js / Java / Python Developer', loc: 'Pune, Maharashtra' }
+            ].map((preset, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => {
+                  setSelectedRoles([preset.role]);
+                  setLocQuery(preset.loc);
+                  handleSearch();
+                }}
+                className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border text-text-muted hover:text-cyan-400 hover:border-cyan-500/40 transition-all cursor-pointer select-none"
+                style={{ background: 'var(--bg-surface-raised)', borderColor: 'var(--border-subtle)' }}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ══════════════════════════════════════════════════════════════
+            LIVE PROGRESS BAR (DURING SCAN)
+            ══════════════════════════════════════════════════════════════ */}
+        {isLoading && (
+          <div className="card p-5 space-y-3.5 border animate-fade-in" style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-surface)' }}>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 rounded-xl bg-cyan-500/20 text-cyan-400 shadow-xs">
+                  <Clock className="h-5 w-5 animate-spin" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-text-primary font-display">
+                      Scanning Job Portals
+                    </span>
+                    <span className="text-xs font-bold text-cyan-400 tabular-nums">
+                      ({searchProgress}%)
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-text-muted block mt-0.5">
+                    {loadingPhase || `Querying active scrapers...`}
                   </span>
                 </div>
               </div>
 
-              {/* Form Controls */}
-              <form onSubmit={handleSearch} className="space-y-4">
-                <div className="flex flex-col md:flex-row gap-3">
-                  <AutocompleteInput
-                    id="role-input"
-                    multi
-                    values={selectedRoles}
-                    onToggle={handleRoleToggle}
-                    onClearAll={() => setSelectedRoles([])}
-                    placeholder="Target Roles..."
-                    icon={<Briefcase className="h-4 w-4" />}
-                    groups={activeRoleGroups}
-                    accentColor={accentColor}
-                  />
-
-                  <AutocompleteInput
-                    id="location-input"
-                    value={locQuery}
-                    onChange={setLocQuery}
-                    placeholder="Location (e.g. Remote, Mumbai)"
-                    icon={<MapPin className="h-4 w-4" />}
-                    groups={INDIAN_LOCATIONS}
-                  />
-                </div>
-
-                {/* Advanced Search Filters Grid (Matches image UI design) */}
-                <div className="pt-2">
-                  <label className="text-[9px] font-bold text-text-muted uppercase tracking-wider block mb-2">
-                    Search Filters & Constraints
-                  </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
-                    <CustomFilterSelect
-                      value={dateOption}
-                      onChange={handleDateOptionChange}
-                      options={DATE_OPTIONS}
-                      placeholder="All Dates"
-                    />
-
-                    <CustomFilterSelect
-                      value={experienceLevel}
-                      onChange={setExperienceLevel}
-                      options={EXPERIENCE_OPTIONS}
-                      placeholder="All Experience"
-                    />
-
-                    <CustomFilterSelect
-                      value={workMode}
-                      onChange={setWorkMode}
-                      options={WORK_MODE_OPTIONS}
-                      placeholder="All Modes"
-                    />
-
-                    <CustomFilterSelect
-                      value={jobType}
-                      onChange={setJobType}
-                      options={JOB_TYPE_OPTIONS}
-                      placeholder="All Types"
-                    />
-
-                    <CustomFilterSelect
-                      value={minSalary}
-                      onChange={setMinSalary}
-                      options={SALARY_OPTIONS}
-                      placeholder="Min Salary"
-                    />
-
-                    <CustomFilterSelect
-                      value={companyTier}
-                      onChange={setCompanyTier}
-                      options={TIER_OPTIONS}
-                      placeholder="Company Tier"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end pt-3">
-                  <button
-                    type="submit"
-                    className="font-extrabold text-xs px-8 py-3 rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center space-x-2 cursor-pointer"
-                    style={{
-                      background: jobMode === 'tech' ? 'var(--accent-cool)' : 'var(--accent-signal)',
-                      color: '#fff',
-                    }}
-                  >
-                    <Search className="h-4 w-4" />
-                    <span>Search Platforms & View Results →</span>
-                  </button>
-                </div>
-              </form>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleStopSearch}
+                  className="bg-danger/15 hover:bg-danger/25 text-danger font-bold text-xs px-3 py-1.5 rounded-xl flex items-center space-x-1.5 transition-all border border-danger/30 cursor-pointer"
+                >
+                  <Square className="h-3 w-3 fill-current" />
+                  <span>Stop Search</span>
+                </button>
+              </div>
             </div>
 
-            {/* ── Direct Role Selection Cards by Category ── */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div>
-                  <h3 className="text-sm font-extrabold text-text-primary font-display flex items-center gap-2">
-                    <Briefcase className="h-4 w-4 text-cool" />
-                    <span>Direct Role Selection by Category</span>
-                  </h3>
-                  <p className="text-[11px] text-text-muted mt-0.5">
-                    Click any role pill directly to toggle selection, or click "Select Section" to select all roles in a category.
-                  </p>
-                </div>
-                <span className="text-xs font-bold text-cool px-3 py-1 rounded-full border bg-cool/10 border-cool/20">
-                  {selectedRoles.length} Roles Selected
+            {/* Progress Track */}
+            <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: 'var(--bg-input)' }}>
+              <div
+                className="h-full rounded-full transition-all duration-300"
+                style={{
+                  width: `${searchProgress}%`,
+                  background: 'linear-gradient(90deg, #06B6D4 0%, #3B82F6 50%, #10B981 100%)',
+                  boxShadow: '0 0 10px rgba(6, 182, 212, 0.4)'
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════
+            LIVE SEARCH RESULTS FEED
+            ══════════════════════════════════════════════════════════════ */}
+        {hasSearched && (
+          <div className="space-y-4 animate-fade-in">
+            {/* Results Status Ribbon */}
+            <div className="card p-3.5 flex items-center justify-between flex-wrap gap-3 border" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
+              <div className="flex items-center space-x-2">
+                <span className="text-xs font-bold text-text-primary font-display">
+                  Found <span className="text-cyan-400 font-extrabold">{untrackedResults.length}</span> Open Positions
+                </span>
+                <span className="text-[10px] text-text-muted">•</span>
+                <span className="text-[11px] text-text-muted">
+                  Roles: {selectedRoles.join(', ') || 'All Roles'} ({locQuery || 'India'})
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {activeRoleGroups.map(group => {
-                  const sectionSelectedCount = group.items.filter(item => selectedRoles.includes(item)).length;
-                  const isAllSectionSelected = sectionSelectedCount === group.items.length;
+              {/* Source breakdown badges */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {Object.entries(sourceCounts).map(([src, count]) => (
+                  <span key={src} className="px-2 py-0.5 rounded-md border font-mono text-[10px]" style={{ background: 'var(--bg-surface-raised)', borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)' }}>
+                    {src}: <strong className="text-cyan-400">{count}</strong>
+                  </span>
+                ))}
+              </div>
+            </div>
 
+            {/* Results Cards List */}
+            <div className="space-y-3">
+              {pagedResults.length === 0 ? (
+                <div className="card p-12 text-center space-y-3 border" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
+                  <p className="text-xs font-bold text-text-primary">
+                    {isLoading ? 'Scanning job boards...' : 'No matching listings found for this query.'}
+                  </p>
+                  <p className="text-[11px] text-text-muted">
+                    {isLoading ? 'Results will stream live into this feed.' : 'Try selecting different roles or relaxing your filters.'}
+                  </p>
+                </div>
+              ) : (
+                pagedResults.map(job => {
+                  const isSaved = trackedUrls.has(job.url);
                   return (
-                    <div
-                      key={group.group}
-                      className="fluent-card rounded-2xl p-4 space-y-3 border transition-all hover:border-cool/30"
-                      style={{ background: 'var(--bg-surface)' }}
+                    <div 
+                      key={job.url}
+                      className="card p-5 flex flex-col md:flex-row md:items-start md:justify-between gap-5 relative group border hover:border-cyan-500/40 hover:shadow-xl transition-all duration-200"
+                      style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}
                     >
-                      {/* Section Header */}
-                      <div className="flex items-center justify-between gap-2 pb-2 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-xs font-extrabold text-text-primary truncate font-display">
-                            {group.group}
-                          </span>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-surface-raised border border-subtle text-text-muted">
-                            {sectionSelectedCount}/{group.items.length}
-                          </span>
+                      <div className="flex items-start space-x-4 min-w-0 flex-1">
+                        <div 
+                          className="h-11 w-11 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 select-none text-white shadow-xs"
+                          style={{ background: 'linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%)' }}
+                        >
+                          {(job.company && job.company.length > 0) ? job.company.charAt(0).toUpperCase() : 'J'}
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (isAllSectionSelected) {
-                              setSelectedRoles(prev => prev.filter(r => !group.items.includes(r)));
-                            } else {
-                              setSelectedRoles(prev => Array.from(new Set([...prev, ...group.items])));
-                            }
-                          }}
-                          className="text-[10px] font-bold text-cool hover:underline px-2.5 py-1 rounded-md transition-colors cursor-pointer shrink-0"
-                          style={{ background: 'rgba(91,140,255,0.08)' }}
-                        >
-                          {isAllSectionSelected ? 'Deselect Section' : 'Select Section'}
-                        </button>
+                        <div className="space-y-1.5 min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h4 className="text-sm font-bold font-display text-text-primary group-hover:text-cyan-400 transition-colors">
+                              {job.title}
+                            </h4>
+                            <span className="text-xs text-text-muted">•</span>
+                            <span className="text-xs font-semibold text-text-secondary">{job.company}</span>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-muted">
+                            <span className="flex items-center gap-1">
+                              <MapPin className="h-3.5 w-3.5 text-text-muted" />
+                              <span>{job.location}</span>
+                            </span>
+                            
+                            {job.salary && (
+                              <>
+                                <span className="opacity-30">•</span>
+                                <span className="font-bold text-emerald-400">{job.salary}</span>
+                              </>
+                            )}
+
+                            <span className="opacity-30">•</span>
+                            <span className="px-2 py-0.5 rounded-md border text-[10px] font-semibold" style={{ background: 'var(--bg-surface-raised)', borderColor: 'var(--border-subtle)' }}>
+                              {job.source}
+                            </span>
+                          </div>
+
+                          {job.description && (
+                            <p className="text-[11px] text-text-muted line-clamp-2 leading-relaxed pt-1">
+                              {job.description}
+                            </p>
+                          )}
+                        </div>
                       </div>
 
-                      {/* Role Pills Grid */}
-                      <div className="flex flex-wrap gap-1.5">
-                        {group.items.map(item => {
-                          const isSelected = selectedRoles.includes(item);
-                          return (
-                            <button
-                              key={item}
-                              type="button"
-                              onClick={() => handleRoleToggle(item)}
-                              className="text-xs font-semibold px-2.5 py-1 rounded-xl transition-all duration-150 cursor-pointer flex items-center gap-1.5 border"
-                              style={{
-                                background: isSelected
-                                  ? (jobMode === 'tech' ? 'rgba(91,140,255,0.18)' : 'rgba(242,184,75,0.15)')
-                                  : 'var(--bg-surface-raised)',
-                                color: isSelected
-                                  ? (jobMode === 'tech' ? 'var(--accent-cool)' : '#F59E0B')
-                                  : 'var(--text-secondary)',
-                                borderColor: isSelected
-                                  ? (jobMode === 'tech' ? 'rgba(91,140,255,0.35)' : 'rgba(242,184,75,0.35)')
-                                  : 'var(--border-subtle)',
-                                boxShadow: isSelected ? '0 2px 8px rgba(91,140,255,0.15)' : 'none',
-                              }}
-                            >
-                              <span>{item}</span>
-                              <span className={`text-[10px] font-extrabold ${isSelected ? 'text-cool' : 'opacity-40'}`}>
-                                {isSelected ? '✓' : '+'}
-                              </span>
-                            </button>
-                          );
-                        })}
+                      {/* Right Action Bar with Direct Apply & AI Tailoring */}
+                      <div className="flex flex-wrap md:flex-col items-center md:items-end justify-between md:justify-start gap-2 shrink-0 border-t md:border-t-0 pt-3 md:pt-0" style={{ borderColor: 'var(--border-subtle)' }}>
+                        <div className="flex items-center space-x-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTailorModalJob({
+                                company: job.company,
+                                role: job.title,
+                                location: job.location,
+                                description: job.description
+                              });
+                            }}
+                            className="btn-secondary text-[11px] px-2.5 py-1.5 flex items-center space-x-1 font-bold text-cyan-400 hover:border-cyan-500/40"
+                            title="AI Tailored Application Package"
+                          >
+                            <Sparkles size={12} className="text-cyan-400" />
+                            <span>Tailor</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setResumeModalJob({
+                                company: job.company,
+                                role: job.title,
+                                location: job.location,
+                                salary: job.salary || 'Competitive',
+                                sourceSite: job.source,
+                                dateApplied: new Date().toISOString().split('T')[0],
+                                lastStatusChange: new Date().toISOString().split('T')[0],
+                                status: 'Wishlist',
+                                statusHistory: [],
+                                link: job.url,
+                                notes: job.description || '',
+                                tags: []
+                              });
+                            }}
+                            className="btn-secondary text-[11px] px-2.5 py-1.5 flex items-center space-x-1 font-bold hover:border-indigo-500/40 hover:text-indigo-400"
+                            title="Generate Jake's ATS Resume for this position"
+                          >
+                            <FileText size={12} />
+                            <span>Resume</span>
+                          </button>
+
+                          <a
+                            href={job.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn-primary text-[11px] px-3 py-1.5 flex items-center space-x-1 font-bold"
+                          >
+                            <span>Apply</span>
+                            <ExternalLink size={11} />
+                          </a>
+                        </div>
+
+                        {/* Save to Tracker Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleSaveToTracker(job)}
+                          disabled={isSaved}
+                          className={`text-[10px] font-bold px-3 py-1 rounded-lg border flex items-center space-x-1 transition-all ${
+                            isSaved 
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
+                              : 'text-text-muted hover:text-text-primary hover:border-slate-500/40'
+                          }`}
+                        >
+                          {isSaved ? <BookmarkCheck size={12} /> : <Bookmark size={12} />}
+                          <span>{isSaved ? 'In Tracker' : 'Save to Tracker'}</span>
+                        </button>
                       </div>
                     </div>
                   );
-                })}
-              </div>
+                })
+              )}
             </div>
 
-          </div>
-        </>
-      ) : (
-        /* ═══════════════════════════════════════════════════════════════════
-           PAGE 2: DEDICATED SEARCH RESULTS & LIVE COMPLETION PROGRESS PAGE
-           ═══════════════════════════════════════════════════════════════════ */
-        <>
-          {/* ── Page Header ── */}
-          <div className="page-header" style={{ flexShrink: 0 }}>
-            <div className="page-header-row">
-              <div className="page-title-group">
-                <div className="flex items-center gap-2 mb-1">
-                  <button
-                    type="button"
-                    onClick={() => setViewPage('search_form')}
-                    className="text-xs font-bold text-cool hover:underline flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <ArrowLeft size={14} />
-                    <span>Back to Search Form</span>
-                  </button>
-                  <span className="text-text-muted opacity-40">•</span>
-                  <span
-                    className="page-eyebrow mb-0"
-                    style={{
-                      background: isLoading ? 'rgba(59,130,246,0.12)' : 'rgba(34,197,94,0.12)',
-                      color: isLoading ? 'var(--accent-cool)' : '#4ADE80',
-                      border: isLoading ? '1px solid rgba(59,130,246,0.25)' : '1px solid rgba(34,197,94,0.25)'
-                    }}
-                  >
-                    {isLoading ? `${searchProgress}% In Progress` : '100% Search Complete'}
-                  </span>
-                </div>
-
-                <h1 className="page-title">Search Results</h1>
-                <p className="page-subtitle">
-                  Showing listings for <strong className="text-text-primary">{selectedRoles.join(', ') || 'Selected Roles'}</strong> in <strong className="text-text-primary">{locQuery || 'India (Remote)'}</strong>
-                </p>
-              </div>
-
-              <div className="page-actions">
-                {isLoading && (
-                  <button
-                    type="button"
-                    onClick={handleStopSearch}
-                    className="btn-secondary"
-                    style={{ color: '#EF4444', borderColor: 'rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.08)' }}
-                  >
-                    <Square size={13} className="fill-current" />
-                    <span>Stop Search</span>
-                  </button>
-                )}
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between p-3 rounded-xl border bg-surface mt-2" style={{ borderColor: 'var(--border-subtle)' }}>
                 <button
                   type="button"
-                  onClick={() => setViewPage('search_form')}
-                  className="btn-secondary"
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  className="btn-secondary text-xs px-3 py-1.5 disabled:opacity-30 cursor-pointer"
                 >
-                  <FilterX size={13} />
-                  <span>Modify Query</span>
+                  ← Previous
+                </button>
+
+                <span className="text-xs font-semibold text-text-muted">
+                  Page <strong className="text-text-primary">{currentPage}</strong> of <strong className="text-text-primary">{totalPages}</strong>
+                </span>
+
+                <button
+                  type="button"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  className="btn-secondary text-xs px-3 py-1.5 disabled:opacity-30 cursor-pointer"
+                >
+                  Next →
                 </button>
               </div>
+            )}
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════
+            ROLE DISCOVERY CATEGORIES ACCORDION / EXPLORER
+            ══════════════════════════════════════════════════════════════ */}
+        <div className="card p-6 space-y-4 border" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
+          <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+            <div>
+              <h3 className="text-sm font-bold text-text-primary font-display flex items-center gap-2">
+                <Briefcase className="h-4 w-4 text-cyan-400" />
+                <span>Explore Roles by Technical Category</span>
+              </h3>
+              <p className="text-[11px] text-text-muted mt-0.5">
+                Click any role pill to add it to your search criteria.
+              </p>
             </div>
+            <span className="text-xs font-bold text-cyan-400 px-3 py-1 rounded-full border bg-cyan-500/10 border-cyan-500/20">
+              {selectedRoles.length} Roles Active
+            </span>
           </div>
 
-          {/* ── Results Body Area ── */}
-          <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 14, padding: '16px 28px 24px' }}>
-            
-            {/* ── LIVE SEARCH COMPLETION PROGRESS CARD (0% to 100%) ── */}
-            <div className="fluent-card rounded-2xl p-5 space-y-3.5 shrink-0" style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-surface)' }}>
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center space-x-3">
-                  <div className={`p-2.5 rounded-xl text-white shadow-xs ${isLoading ? 'bg-blue-600 animate-pulse' : 'bg-emerald-600'}`}>
-                    {isLoading ? <Clock className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5" />}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-extrabold text-text-primary font-display">
-                        {isLoading ? 'Scanning Job Platforms' : 'Search Completed'}
-                      </span>
-                      <span className="text-xs font-extrabold text-cool tabular-nums">
-                        ({searchProgress}%)
-                      </span>
-                    </div>
-                    <span className="text-[11px] text-text-muted block mt-0.5">
-                      {loadingPhase || (isLoading ? `Querying: ${activeSearches.join(', ')}...` : 'All scrapers completed.')}
-                    </span>
-                  </div>
-                </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {activeRoleGroups.map(group => {
+              const sectionSelectedCount = group.items.filter(item => selectedRoles.includes(item)).length;
+              const isAllSectionSelected = sectionSelectedCount === group.items.length;
 
-                <div className="flex items-center gap-2">
-                  {isLoading && (
+              return (
+                <div
+                  key={group.group}
+                  className="p-4 rounded-xl border space-y-2.5 transition-all hover:border-cyan-500/30"
+                  style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}
+                >
+                  <div className="flex items-center justify-between gap-2 pb-1.5 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+                    <span className="text-xs font-bold text-text-primary truncate font-display">
+                      {group.group}
+                    </span>
                     <button
                       type="button"
-                      onClick={handleStopSearch}
-                      className="bg-danger hover:bg-danger/90 text-white font-extrabold text-xs px-3.5 py-1.5 rounded-xl flex items-center space-x-1.5 transition-all shadow-xs cursor-pointer"
+                      onClick={() => {
+                        if (isAllSectionSelected) {
+                          setSelectedRoles(prev => prev.filter(r => !group.items.includes(r)));
+                        } else {
+                          setSelectedRoles(prev => Array.from(new Set([...prev, ...group.items])));
+                        }
+                      }}
+                      className="text-[10px] font-bold text-cyan-400 hover:underline px-2 py-0.5 rounded-md cursor-pointer shrink-0"
+                      style={{ background: 'var(--sidebar-item-active)' }}
                     >
-                      <Square className="h-3.5 w-3.5 fill-current" />
-                      <span>Stop Search</span>
+                      {isAllSectionSelected ? 'Deselect' : 'Select All'}
                     </button>
-                  )}
-                  <span className="text-xs font-extrabold px-3 py-1 rounded-full border tabular-nums" style={{ background: 'var(--bg-surface-raised)', color: 'var(--accent-cool)', borderColor: 'var(--border-subtle)' }}>
-                    {searchProgress}% Complete
-                  </span>
-                </div>
-              </div>
-
-              {/* Progress Bar */}
-              <div className="w-full h-3 rounded-full overflow-hidden relative" style={{ background: 'var(--input-bg)' }}>
-                <div
-                  className="h-full rounded-full transition-all duration-300"
-                  style={{
-                    width: `${searchProgress}%`,
-                    background: isLoading
-                      ? 'linear-gradient(90deg, #3B82F6 0%, #8B5CF6 50%, #06B6D4 100%)'
-                      : 'linear-gradient(90deg, #10B981 0%, #059669 100%)',
-                    boxShadow: '0 0 12px rgba(59, 130, 246, 0.5)'
-                  }}
-                />
-              </div>
-
-              {/* Source breakdown & Pipeline metrics */}
-              <div className="flex items-center justify-between text-[11px] text-text-muted pt-1 flex-wrap gap-2 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {Object.entries(sourceCounts).map(([src, count]) => (
-                    <span key={src} className="px-2.5 py-1 rounded-md border font-semibold text-[10px]" style={{ background: 'var(--bg-surface-raised)', borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)' }}>
-                      {src}: <span className="font-extrabold text-cool">{count}</span> jobs
-                    </span>
-                  ))}
-                </div>
-                {pipelineStats && (
-                  <span className="font-mono text-[10px] text-text-muted">
-                    {pipelineStats.raw} raw → {pipelineStats.afterDedup} deduped → {pipelineStats.afterFilters} filtered
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Results Filter Toolbar & List Container */}
-            <div className="space-y-4 flex-1 min-h-0 overflow-y-auto pr-1">
-              
-              {/* Applied Filters Summary Bar */}
-              <div className="fluent-card rounded-2xl p-3.5 shrink-0 flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-2 flex-wrap text-xs">
-                  <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Applied Filters:</span>
-                  <span className="px-2.5 py-1 rounded-lg border font-semibold text-[11px]" style={{ background: 'var(--bg-surface-raised)', borderColor: 'var(--border-subtle)' }}>
-                    📅 {dateOption === 'all' ? 'All Dates' : dateOption}
-                  </span>
-                  <span className="px-2.5 py-1 rounded-lg border font-semibold text-[11px]" style={{ background: 'var(--bg-surface-raised)', borderColor: 'var(--border-subtle)' }}>
-                    🎓 {experienceLevel === 'all' ? 'All Experience' : experienceLevel === 'fresher' ? 'Fresher' : `${experienceLevel}+ Yrs`}
-                  </span>
-                  <span className="px-2.5 py-1 rounded-lg border font-semibold text-[11px]" style={{ background: 'var(--bg-surface-raised)', borderColor: 'var(--border-subtle)' }}>
-                    🏠 {workMode === 'all' ? 'All Modes' : workMode}
-                  </span>
-                  <span className="px-2.5 py-1 rounded-lg border font-semibold text-[11px]" style={{ background: 'var(--bg-surface-raised)', borderColor: 'var(--border-subtle)' }}>
-                    💼 {jobType === 'all' ? 'All Types' : jobType}
-                  </span>
-                  <span className="px-2.5 py-1 rounded-lg border font-semibold text-[11px]" style={{ background: 'var(--bg-surface-raised)', borderColor: 'var(--border-subtle)' }}>
-                    💰 {minSalary === 'all' ? 'Any Salary' : `₹${minSalary}+ LPA`}
-                  </span>
-                  <span className="px-2.5 py-1 rounded-lg border font-semibold text-[11px]" style={{ background: 'var(--bg-surface-raised)', borderColor: 'var(--border-subtle)' }}>
-                    🏢 {companyTier === 'all' ? 'All Tiers' : companyTier.toUpperCase()}
-                  </span>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setViewPage('search_form')}
-                  className="text-xs font-bold text-cool hover:underline flex items-center gap-1 cursor-pointer"
-                >
-                  <FilterX size={13} />
-                  <span>Modify Search Filters</span>
-                </button>
-              </div>
-
-              {/* Results List Cards */}
-              <div className="space-y-3">
-                {pagedResults.length === 0 ? (
-                  <div className="fluent-card rounded-2xl p-12 text-center space-y-3">
-                    <p className="text-xs font-bold text-text-primary">
-                      {isLoading ? 'Scanning job boards...' : 'No unmatched listings found.'}
-                    </p>
-                    <p className="text-[11px] text-text-muted">
-                      {isLoading ? 'Results will populate live as scrapers return entries.' : 'Try adjusting your role or location query.'}
-                    </p>
                   </div>
-                ) : (
-                  pagedResults.map(job => {
-                    const isSaved = trackedUrls.has(job.url);
-                    return (
-                      <div 
-                        key={job.url}
-                        className="fluent-card rounded-2xl p-5 flex flex-col md:flex-row md:items-start md:justify-between gap-5 relative group"
-                      >
-                        <div className="flex items-start space-x-4 min-w-0 flex-1">
-                          <div 
-                            className="h-10 w-10 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 select-none border text-white shadow-xs"
-                            style={{ background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)' }}
-                          >
-                            {(job.company && job.company.length > 0) ? job.company.charAt(0).toUpperCase() : 'J'}
-                          </div>
 
-                          <div className="min-w-0 space-y-1 flex-1">
-                            <h4 className="text-sm font-bold text-text-primary font-display">{job.title}</h4>
-                            <div className="flex items-center gap-2 text-xs text-text-muted flex-wrap">
-                              <span className="font-semibold text-text-secondary">{job.company}</span>
-                              <span>•</span>
-                              <span>{job.location}</span>
-                              <span>•</span>
-                              <span className="font-semibold text-cool">{job.source}</span>
-                            </div>
-                            {job.description && (
-                              <p className="text-[11px] text-text-muted line-clamp-2 mt-1 leading-relaxed">
-                                {job.description}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 shrink-0">
-                          {isSaved ? (
-                            <span className="px-3 py-1.5 rounded-xl text-xs font-extrabold border bg-emerald-500/10 text-emerald-400 border-emerald-500/30 flex items-center space-x-1.5">
-                              <BookmarkCheck size={14} />
-                              <span>Saved</span>
-                            </span>
-                          ) : (
-                            <button
-                              onClick={() => handleSaveToTracker(job)}
-                              className="btn-primary text-xs px-3.5 py-1.5 rounded-xl flex items-center space-x-1.5"
-                            >
-                              <Bookmark size={13} />
-                              <span>Save to Tracker</span>
-                            </button>
-                          )}
-                          {job.url && (
-                            <a
-                              href={job.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="btn-secondary p-2 rounded-xl"
-                              title="Open original listing"
-                            >
-                              <ExternalLink size={14} />
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-center space-x-2 py-4">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="btn-secondary px-3 py-1.5 text-xs font-bold disabled:opacity-30"
-                  >
-                    Prev
-                  </button>
-                  <span className="text-xs font-extrabold text-text-muted">
-                    Page {currentPage} of {totalPages}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    className="btn-secondary px-3 py-1.5 text-xs font-bold disabled:opacity-30"
-                  >
-                    Next
-                  </button>
+                  <div className="flex flex-wrap gap-1.5">
+                    {group.items.map(item => {
+                      const isSelected = selectedRoles.includes(item);
+                      return (
+                        <button
+                          key={item}
+                          type="button"
+                          onClick={() => handleRoleToggle(item)}
+                          className="text-xs font-semibold px-2.5 py-1 rounded-xl transition-all duration-150 cursor-pointer flex items-center gap-1.5 border"
+                          style={{
+                            background: isSelected
+                              ? 'var(--sidebar-item-active)'
+                              : 'var(--bg-surface-raised)',
+                            color: isSelected
+                              ? 'var(--accent-primary)'
+                              : 'var(--text-secondary)',
+                            borderColor: isSelected
+                              ? 'var(--border-glow)'
+                              : 'var(--border-subtle)',
+                          }}
+                        >
+                          <span>{item}</span>
+                          <span className={`text-[10px] font-bold ${isSelected ? 'text-cyan-400' : 'opacity-40'}`}>
+                            {isSelected ? '✓' : '+'}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              )}
-
-            </div>
+              );
+            })}
           </div>
-        </>
+        </div>
+
+      </div>
+
+      {/* ── Modals for Tailoring & Resume ── */}
+      {tailorModalJob && (
+        <AITailorModal
+          isOpen={Boolean(tailorModalJob)}
+          onClose={() => setTailorModalJob(null)}
+          job={tailorModalJob}
+        />
       )}
-    </>
+
+      {resumeModalJob && (
+        <TailoredResumeModal
+          isOpen={Boolean(resumeModalJob)}
+          onClose={() => setResumeModalJob(null)}
+          job={resumeModalJob}
+        />
+      )}
+    </div>
   );
 };

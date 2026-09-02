@@ -1,27 +1,36 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type JobApplication, type JobStatus } from '../db/schema';
+import { db, getUserProfile, type JobApplication, type JobStatus } from '../db/schema';
 import { useUIStore } from '../store/useUIStore';
 import { JobModal } from './JobModal';
-import { exportToCSV } from '../utils/helpers';
+import { AITailorModal } from './AITailorModal';
+import { InterviewPrepModal } from './InterviewPrepModal';
+import { TailoredResumeModal } from './TailoredResumeModal';
+import { EmailGeneratorModal } from './EmailGeneratorModal';
+import { CustomDropdown, StatusSelectDropdown } from './CustomDropdown';
+import { ConfirmModal } from './ConfirmModal';
+import { syncToNotionAPI } from '../utils/notionService';
+import { checkNeedsFollowUp } from '../utils/helpers';
 import { 
+  GripVertical,
   Plus, 
-  Download, 
-  Upload, 
   Search, 
-  X, 
-  AlertCircle,
-  Calendar,
-  MapPin,
-  Briefcase,
-  ExternalLink,
-  Edit2,
-  Trash2,
-  Tag,
-  Check,
-  Globe,
-  TrendingUp,
-  KanbanSquare
+  Share2, 
+  Download, 
+  Trash2, 
+  Sparkles, 
+  Target, 
+  FileText, 
+  Mail, 
+  ExternalLink, 
+  Edit2, 
+  AlertCircle, 
+  MapPin, 
+  Globe, 
+  Tag, 
+  TrendingUp, 
+  RotateCcw,
+  Briefcase
 } from 'lucide-react';
 
 const COLUMNS: JobStatus[] = [
@@ -31,89 +40,109 @@ const COLUMNS: JobStatus[] = [
   'Interview',
   'Offer',
   'Rejected',
-  'Withdrawn',
+  'Withdrawn'
 ];
 
-const STATUS_THEMES: Record<string, { bg: string; text: string; border: string; accent: string }> = {
-  Wishlist: { bg: 'rgba(136, 146, 166, 0.12)', text: '#8892A6', border: 'rgba(136, 146, 166, 0.3)', accent: '#8892A6' },
-  Applied: { bg: 'rgba(91, 140, 255, 0.12)', text: '#5B8CFF', border: 'rgba(91, 140, 255, 0.3)', accent: '#5B8CFF' },
-  'OA/Assessment': { bg: 'rgba(192, 132, 252, 0.12)', text: '#C084FC', border: 'rgba(192, 132, 252, 0.3)', accent: '#C084FC' },
-  Interview: { bg: 'rgba(251, 146, 60, 0.12)', text: '#FB923C', border: 'rgba(251, 146, 60, 0.3)', accent: '#FB923C' },
-  Offer: { bg: 'rgba(74, 222, 128, 0.12)', text: '#4ADE80', border: 'rgba(74, 222, 128, 0.3)', accent: '#4ADE80' },
-  Rejected: { bg: 'rgba(242, 107, 107, 0.12)', text: '#F26B6B', border: 'rgba(242, 107, 107, 0.3)', accent: '#F26B6B' },
-  Withdrawn: { bg: 'rgba(148, 163, 184, 0.12)', text: '#94A3B8', border: 'rgba(148, 163, 184, 0.3)', accent: '#94A3B8' },
+const STATUS_THEMES: Record<JobStatus, { bg: string; text: string; border: string; accent: string }> = {
+  Wishlist:        { bg: 'rgba(148, 163, 184, 0.12)', text: '#94A3B8', border: 'rgba(148, 163, 184, 0.25)', accent: '#94A3B8' },
+  Applied:         { bg: 'rgba(56, 189, 248, 0.12)',  text: '#38BDF8', border: 'rgba(56, 189, 248, 0.25)',  accent: '#38BDF8' },
+  'OA/Assessment': { bg: 'rgba(168, 85, 247, 0.12)',  text: '#C084FC', border: 'rgba(168, 85, 247, 0.25)',  accent: '#A855F7' },
+  Interview:       { bg: 'rgba(251, 146, 60, 0.12)',  text: '#FB923C', border: 'rgba(251, 146, 60, 0.25)',  accent: '#FB923C' },
+  Offer:           { bg: 'rgba(52, 211, 153, 0.12)',  text: '#34D399', border: 'rgba(52, 211, 153, 0.25)',  accent: '#10B981' },
+  Rejected:        { bg: 'rgba(248, 113, 113, 0.12)', text: '#F87171', border: 'rgba(248, 113, 113, 0.25)', accent: '#EF4444' },
+  Withdrawn:       { bg: 'rgba(100, 116, 139, 0.12)', text: '#64748B', border: 'rgba(100, 116, 139, 0.25)', accent: '#64748B' },
 };
 
 export const TrackerView: React.FC = () => {
   const { filters, setFilters, resetFilters, defaultReminderDays } = useUIStore();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Modals state
+  
+  const [selectedJob, setSelectedJob] = useState<JobApplication | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedJob, setSelectedJob] = useState<JobApplication | undefined>(undefined);
+  const [activeStatusFilter, setActiveStatusFilter] = useState<string>('all');
+  const [dateOption, setDateOption] = useState<string>('all');
   const [deleteConfirmJob, setDeleteConfirmJob] = useState<JobApplication | null>(null);
-  const [dateOption, setDateOption] = useState('all');
+  const [isSyncingNotion, setIsSyncingNotion] = useState(false);
+  const [notionMessage, setNotionMessage] = useState<string | null>(null);
 
-  // Fetch all jobs from Dexie
-  const jobs = useLiveQuery(() => db.jobs.toArray()) || [];
+  // AI Modal States
+  const [tailorJob, setTailorJob] = useState<JobApplication | null>(null);
+  const [prepJob, setPrepJob] = useState<JobApplication | null>(null);
+  const [resumeJob, setResumeJob] = useState<JobApplication | null>(null);
+  const [emailJob, setEmailJob] = useState<JobApplication | null>(null);
 
-  // Extract unique tags and sources for filters
-  const uniqueTags = useMemo(() => {
-    const tagsSet = new Set<string>();
-    jobs.forEach(job => job.tags?.forEach(tag => tagsSet.add(tag)));
-    return Array.from(tagsSet);
-  }, [jobs]);
+  // Live Query All Jobs
+  const jobs = useLiveQuery(() => db.jobs.toArray()) ?? [];
 
-  const uniqueSources = useMemo(() => {
-    const sourcesSet = new Set<string>();
-    jobs.forEach(job => {
-      if (job.sourceSite) sourcesSet.add(job.sourceSite);
-    });
-    return Array.from(sourcesSet);
-  }, [jobs]);
-
-  // Derived stats for the summary header bar
+  // KPI Metrics
   const stats = useMemo(() => {
-    const totalApplied = jobs.filter(j => j.status !== 'Wishlist' && j.status !== 'Withdrawn' && j.status !== 'Rejected').length;
+    const total = jobs.length;
+    const applied = jobs.filter(j => ['Applied', 'OA/Assessment', 'Interview', 'Offer'].includes(j.status)).length;
     const interviews = jobs.filter(j => j.status === 'Interview').length;
     const offers = jobs.filter(j => j.status === 'Offer').length;
     const wishlist = jobs.filter(j => j.status === 'Wishlist').length;
-    const conversionRate = totalApplied > 0 ? Math.round((interviews + offers) / totalApplied * 100) : 0;
-    return { totalApplied, interviews, offers, wishlist, conversionRate };
+    const conversionRate = applied > 0 ? Math.round(((interviews + offers) / applied) * 100) : 0;
+
+    return { total, totalApplied: applied, interviews, offers, wishlist, conversionRate };
   }, [jobs]);
 
-  // Filtered jobs
-  const filteredJobs = useMemo(() => {
-    const cutoffDate = (() => {
-      if (dateOption === 'all') return null;
-      const days = parseInt(dateOption, 10);
-      const d = new Date();
-      d.setDate(d.getDate() - days);
-      return d.toISOString().split('T')[0];
-    })();
+  // Unique Sources for Filter Dropdown
+  const sources = useMemo(() => {
+    const s = new Set<string>();
+    jobs.forEach(j => { if (j.sourceSite) s.add(j.sourceSite); });
+    return Array.from(s);
+  }, [jobs]);
 
+  // Filtered Jobs List
+  const filteredJobs = useMemo(() => {
     return jobs.filter(job => {
+      // 1. Status Filter
+      if (activeStatusFilter !== 'all' && job.status !== activeStatusFilter) return false;
+
+      // 2. Text Search
       if (filters.search) {
         const query = filters.search.toLowerCase();
-        const compMatch = job.company.toLowerCase().includes(query);
-        const roleMatch = job.role.toLowerCase().includes(query);
-        if (!compMatch && !roleMatch) return false;
+        const matchComp = job.company.toLowerCase().includes(query);
+        const matchRole = job.role.toLowerCase().includes(query);
+        const matchLoc = job.location.toLowerCase().includes(query);
+        const matchTag = job.tags && job.tags.some(t => t.toLowerCase().includes(query));
+        if (!matchComp && !matchRole && !matchLoc && !matchTag) return false;
       }
-      if (filters.source !== 'all' && job.sourceSite !== filters.source) {
-        return false;
-      }
-      if (filters.tag !== 'all' && !job.tags?.includes(filters.tag)) {
-        return false;
-      }
-      if (cutoffDate && job.dateApplied < cutoffDate) {
-        return false;
-      }
-      return true;
-    });
-  }, [jobs, filters, dateOption]);
 
-  const handleAddClick = () => {
-    setSelectedJob(undefined);
+      // 3. Source Filter
+      if (filters.source && filters.source !== 'all' && job.sourceSite !== filters.source) return false;
+
+      // 4. Tag Filter
+      if (filters.tag && filters.tag !== 'all' && (!job.tags || !job.tags.includes(filters.tag))) return false;
+
+      // 5. Date Filter
+      if (dateOption !== 'all') {
+        const jobDate = new Date(job.dateApplied).getTime();
+        const now = Date.now();
+        const dayMs = 86400000;
+        if (dateOption === '7d' && now - jobDate > 7 * dayMs) return false;
+        if (dateOption === '30d' && now - jobDate > 30 * dayMs) return false;
+        if (dateOption === '90d' && now - jobDate > 90 * dayMs) return false;
+      }
+
+      return true;
+    }).sort((a, b) => new Date(b.dateApplied).getTime() - new Date(a.dateApplied).getTime());
+  }, [jobs, activeStatusFilter, filters, dateOption]);
+
+  const handleAddClick = (status: JobStatus = 'Wishlist') => {
+    setSelectedJob({
+      company: '',
+      role: '',
+      location: 'India (Remote)',
+      salary: '',
+      sourceSite: 'Direct',
+      dateApplied: new Date().toISOString().split('T')[0],
+      lastStatusChange: new Date().toISOString().split('T')[0],
+      status,
+      statusHistory: [{ status, date: new Date().toISOString() }],
+      link: '',
+      notes: '',
+      tags: [],
+    });
     setIsModalOpen(true);
   };
 
@@ -122,294 +151,402 @@ export const TrackerView: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleExportJSON = () => {
-    if (jobs.length === 0) {
-      alert('No application data to export.');
-      return;
-    }
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(jobs, null, 2));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `jobfinder_backup_${new Date().toISOString().split('T')[0]}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-  };
-
   const handleExportCSV = () => {
+    if (jobs.length === 0) return;
+    const headers = ['ID', 'Company', 'Role', 'Status', 'Location', 'Salary', 'Source', 'DateApplied', 'Tags', 'Link'];
+    const rows = jobs.map(j => [
+      j.id || '',
+      `"${j.company.replace(/"/g, '""')}"`,
+      `"${j.role.replace(/"/g, '""')}"`,
+      j.status,
+      `"${j.location.replace(/"/g, '""')}"`,
+      `"${(j.salary || '').replace(/"/g, '""')}"`,
+      j.sourceSite,
+      j.dateApplied,
+      `"${(j.tags || []).join(', ')}"`,
+      `"${j.link || ''}"`
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `jobfinder_applications_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleSyncNotion = async () => {
     if (jobs.length === 0) {
-      alert('No application data to export.');
+      alert('No jobs in tracker to sync!');
       return;
     }
-    const csvContent = exportToCSV(jobs);
-    const dataStr = "data:text/csv;charset=utf-8," + encodeURIComponent(csvContent);
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `jobfinder_applications_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
+    setIsSyncingNotion(true);
+    const profile = await getUserProfile();
+    const res = await syncToNotionAPI(jobs, profile.notionToken || '', profile.notionDatabaseId || '');
+    setNotionMessage(res.message);
+    setIsSyncingNotion(false);
+    setTimeout(() => setNotionMessage(null), 5000);
   };
 
-  const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const fileReader = new FileReader();
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    fileReader.onload = async (event) => {
-      try {
-        const importedJobs = JSON.parse(event.target?.result as string);
-        if (!Array.isArray(importedJobs)) {
-          alert('Invalid backup file. Must be a JSON array of applications.');
-          return;
-        }
-
-        if (window.confirm(`Are you sure you want to import ${importedJobs.length} applications? This will merge with your current entries.`)) {
-          for (const item of importedJobs) {
-            await db.jobs.put(item);
-          }
-          alert('Data imported successfully!');
-        }
-      } catch (err) {
-        alert('Failed to parse backup file. Please ensure it is a valid JSON.');
-      }
-    };
-    fileReader.readAsText(files[0]);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-
-
-  const isFiltered = filters.search || filters.source !== 'all' || filters.tag !== 'all' || dateOption !== 'all';
+  const isFiltered = filters.search || filters.source !== 'all' || filters.tag !== 'all' || dateOption !== 'all' || activeStatusFilter !== 'all';
 
   return (
-    <>
-      {/* ── Page Header ── */}
-      <div className="page-header">
-        <div className="page-header-row">
-          <div className="page-title-group">
-            <span
-              className="page-eyebrow"
-              style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent-primary)', border: '1px solid rgba(99,102,241,0.2)' }}
-            >
-              <KanbanSquare size={11} />
-              Pipeline Tracker
+    <div className="page-content w-full max-w-full px-3 sm:px-8 py-3 sm:py-6 pb-24 sm:pb-10 overflow-y-auto overflow-x-hidden">
+      <div className="w-full max-w-7xl mx-auto space-y-4">
+        
+        {/* Top KPI Metrics Bar */}
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 sm:gap-3 w-full">
+          {/* 1. Active Pipeline */}
+          <div className="card p-2 sm:p-3.5 flex flex-col justify-between border min-w-0" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+            <span className="text-[8px] sm:text-[10px] uppercase font-bold text-text-muted truncate">Pipeline</span>
+            <div className="flex items-baseline space-x-1 mt-0.5">
+              <span className="text-sm sm:text-xl font-black font-display text-cyan-400">{stats.totalApplied}</span>
+              <span className="text-[8px] sm:text-[10px] text-text-muted font-medium hidden sm:inline">in progress</span>
+            </div>
+          </div>
+
+          {/* 2. Interviews */}
+          <div className="card p-2 sm:p-3.5 hidden sm:flex flex-col justify-between border min-w-0" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+            <span className="text-[8px] sm:text-[10px] uppercase font-bold truncate" style={{ color: 'var(--status-interview)' }}>Interviews</span>
+            <div className="flex items-baseline space-x-1 mt-0.5">
+              <span className="text-sm sm:text-xl font-black font-display" style={{ color: 'var(--status-interview)' }}>{stats.interviews}</span>
+              <span className="text-[8px] sm:text-[10px] text-text-muted font-medium">active</span>
+            </div>
+          </div>
+
+          {/* 3. Offers */}
+          <div className="card p-2 sm:p-3.5 flex flex-col justify-between border min-w-0" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+            <span className="text-[8px] sm:text-[10px] uppercase font-bold truncate" style={{ color: 'var(--status-offer)' }}>Offers</span>
+            <div className="flex items-baseline space-x-1 mt-0.5">
+              <span className="text-sm sm:text-xl font-black font-display text-emerald-400">{stats.offers}</span>
+              <span className="text-[8px] sm:text-[10px] text-text-muted font-medium hidden sm:inline">wins</span>
+            </div>
+          </div>
+
+          {/* 4. Wishlist */}
+          <div className="card p-2 sm:p-3.5 hidden sm:flex flex-col justify-between border min-w-0" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+            <span className="text-[8px] sm:text-[10px] uppercase font-bold text-text-muted truncate">Wishlist</span>
+            <div className="flex items-baseline space-x-1 mt-0.5">
+              <span className="text-sm sm:text-xl font-black font-display text-purple-400">{stats.wishlist}</span>
+              <span className="text-[8px] sm:text-[10px] text-text-muted font-medium">leads</span>
+            </div>
+          </div>
+
+          {/* 5. Rate */}
+          <div className="card p-2 sm:p-3.5 flex flex-col justify-between border min-w-0" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+            <span className="text-[8px] sm:text-[10px] uppercase font-bold text-primary flex items-center space-x-1 truncate">
+              <TrendingUp className="h-2 w-2 sm:h-3 sm:w-3 shrink-0" />
+              <span>Rate</span>
             </span>
-            <h1 className="page-title">Applications</h1>
-            <p className="page-subtitle">Track every application — from wishlist to offer — in one place.</p>
-          </div>
-          <div className="page-actions">
-            <button onClick={handleAddClick} className="btn-primary">
-              <Plus size={15} />
-              <span>Add Application</span>
-            </button>
-            <button onClick={handleExportCSV} className="btn-secondary" title="Export CSV">
-              <Download size={14} style={{ color: 'var(--accent-emerald)' }} />
-              <span className="hidden sm:inline">Export CSV</span>
-            </button>
-            <button onClick={handleExportJSON} className="btn-secondary" title="Backup JSON">
-              <Download size={14} style={{ color: 'var(--accent-cool)' }} />
-              <span className="hidden sm:inline">Backup</span>
-            </button>
-            <button onClick={() => fileInputRef.current?.click()} className="btn-secondary" title="Import JSON">
-              <Upload size={14} style={{ color: 'var(--accent-purple)' }} />
-              <span className="hidden sm:inline">Import</span>
-            </button>
-            <input type="file" ref={fileInputRef} onChange={handleImportJSON} accept=".json" className="hidden" />
+            <div className="flex items-baseline space-x-1 mt-0.5">
+              <span className="text-sm sm:text-xl font-black font-display text-rose-400">{stats.conversionRate}%</span>
+              <span className="text-[8px] sm:text-[10px] text-text-muted font-medium hidden sm:inline">rate</span>
+            </div>
           </div>
         </div>
 
-        {/* ── Stats Row ── */}
-        <div className="stats-row">
-          <div className="stat-card">
-            <div className="stat-icon-wrap" style={{ background: 'linear-gradient(135deg,#3B82F6,#1D4ED8)' }}><Briefcase size={16} /></div>
-            <div className="stat-text"><span className="stat-value">{stats.totalApplied}</span><span className="stat-label">Active Apps</span></div>
+        {/* Notion Sync Notification Toast */}
+        {notionMessage && (
+          <div className="p-3.5 rounded-xl border text-xs font-semibold flex items-center justify-between animate-fade-in" style={{ background: 'rgba(56, 189, 248, 0.12)', color: 'var(--accent-cool)', borderColor: 'rgba(56, 189, 248, 0.25)' }}>
+            <div className="flex items-center space-x-2">
+              <Share2 className="h-4 w-4 shrink-0" />
+              <span>{notionMessage}</span>
+            </div>
+            <button onClick={() => setNotionMessage(null)} className="text-text-muted hover:text-text-primary cursor-pointer">&times;</button>
           </div>
-          <div className="stat-card">
-            <div className="stat-icon-wrap" style={{ background: 'linear-gradient(135deg,#F97316,#EA580C)' }}><Calendar size={16} /></div>
-            <div className="stat-text"><span className="stat-value">{stats.interviews}</span><span className="stat-label">Interviews</span></div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-icon-wrap" style={{ background: 'linear-gradient(135deg,#22C55E,#15803D)' }}><Check size={16} /></div>
-            <div className="stat-text"><span className="stat-value">{stats.offers}</span><span className="stat-label">Offers</span></div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-icon-wrap" style={{ background: 'linear-gradient(135deg,#F59E0B,#D97706)' }}><Tag size={16} /></div>
-            <div className="stat-text"><span className="stat-value">{stats.wishlist}</span><span className="stat-label">Wishlist</span></div>
-          </div>
-          <div className="stat-card" style={{ gridColumn: 'span 1' }}>
-            <div className="stat-icon-wrap" style={{ background: 'linear-gradient(135deg,#A855F7,#7C3AED)' }}><TrendingUp size={16} /></div>
-            <div className="stat-text"><span className="stat-value">{stats.conversionRate}%</span><span className="stat-label">Int. Rate</span></div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Filters Bar ── */}
-      <div className="filters-bar">
-        <div className="filter-input-wrap">
-          <Search size={13} className="filter-input-icon" />
-          <input
-            type="text"
-            placeholder="Search company or role..."
-            value={filters.search}
-            onChange={(e) => setFilters({ search: e.target.value })}
-            className="filter-input"
-          />
-        </div>
-
-        <select
-          value={filters.source}
-          onChange={(e) => setFilters({ source: e.target.value })}
-          className="filter-select"
-        >
-          <option value="all">All Channels</option>
-          {uniqueSources.map(s => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
-
-        <select
-          value={filters.tag}
-          onChange={(e) => setFilters({ tag: e.target.value })}
-          className="filter-select"
-        >
-          <option value="all">All Tags</option>
-          {uniqueTags.map(t => (
-            <option key={t} value={t}>{t}</option>
-          ))}
-        </select>
-
-        <select
-          value={dateOption}
-          onChange={(e) => setDateOption(e.target.value)}
-          className="filter-select"
-        >
-          <option value="all">All Time</option>
-          <option value="1">Last 24 Hours</option>
-          <option value="3">Last 3 Days</option>
-          <option value="7">Last 7 Days</option>
-          <option value="14">Last 14 Days</option>
-          <option value="30">Last 30 Days</option>
-        </select>
-        {/* spacer */}
-        <div style={{ flex: 1 }} />
-
-        {isFiltered && (
-          <button
-            onClick={() => { resetFilters(); setDateOption('all'); }}
-            className="filter-reset-btn"
-          >
-            <X size={12} />
-            <span>{filteredJobs.length}/{jobs.length} matched · Reset</span>
-          </button>
         )}
-      </div>
 
-      {/* ── HIGH-DENSITY TABLE LIST VIEW ── */}
-      <div className="flex-1 overflow-y-auto pr-1 space-y-3.5 scrollbar-thin">
-        {filteredJobs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center border border-dashed rounded-2xl p-12 text-center select-none" style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-surface-raised)' }}>
-            <AlertCircle className="h-8 w-8 text-text-muted/40 mb-3" />
-            <p className="text-xs font-semibold text-text-primary">No applications matched your filter query.</p>
-            <p className="text-[10px] text-text-muted mt-1">Try modifying your text filters or date range.</p>
-          </div>
-        ) : (
-          filteredJobs.map((job) => {
-            const theme = STATUS_THEMES[job.status] || STATUS_THEMES['Wishlist'];
-            const isStale = ['Offer', 'Rejected', 'Withdrawn'].includes(job.status) 
-              ? false 
-              : (() => {
-                  const lastChange = new Date(job.lastStatusChange || job.dateApplied).getTime();
-                  const diffDays = Math.floor((Date.now() - lastChange) / (1000 * 60 * 60 * 24));
-                  return diffDays >= defaultReminderDays;
-                })();
-            
+        {/* Status Filter Ribbon Pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none flex-nowrap w-full">
+          <button
+            onClick={() => setActiveStatusFilter('all')}
+            className="text-xs px-3.5 py-1.5 rounded-xl font-bold transition-all shrink-0 cursor-pointer"
+            style={{
+              background: activeStatusFilter === 'all' ? 'var(--sidebar-item-active)' : 'var(--bg-surface-raised)',
+              color: activeStatusFilter === 'all' ? 'var(--accent-primary)' : 'var(--text-muted)',
+              border: activeStatusFilter === 'all' ? '1px solid var(--border-glow)' : '1px solid var(--border-subtle)'
+            }}
+          >
+            All Applications ({jobs.length})
+          </button>
+          {COLUMNS.map((st) => {
+            const count = jobs.filter(j => j.status === st).length;
+            const theme = STATUS_THEMES[st] || STATUS_THEMES.Wishlist;
+            const isActive = activeStatusFilter === st;
             return (
-              <div
-                key={job.id}
-                className="fluent-card rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-5 relative group"
-                style={{ 
-                  borderLeft: `4px solid ${theme.accent}`,
+              <button
+                key={st}
+                onClick={() => setActiveStatusFilter(st)}
+                className="text-xs px-3.5 py-1.5 rounded-xl font-bold transition-all shrink-0 cursor-pointer flex items-center space-x-1.5"
+                style={{
+                  background: isActive ? theme.bg : 'var(--bg-surface-raised)',
+                  color: isActive ? theme.text : 'var(--text-muted)',
+                  border: isActive ? `1px solid ${theme.border}` : '1px solid var(--border-subtle)'
                 }}
               >
-                {/* Left Details */}
-                <div className="flex items-start space-x-4 min-w-0 flex-1">
-                  <div 
-                    className="h-10 w-10 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 select-none border text-white shadow-xs"
-                    style={{ 
-                      background: `linear-gradient(135deg, ${theme.accent} 0%, #1D4ED8 100%)`,
-                      borderColor: theme.border
-                    }}
-                  >
-                    {(job.company && job.company.length > 0) ? job.company.charAt(0).toUpperCase() : 'J'}
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: theme.accent }} />
+                <span>{st}</span>
+                <span className="text-[10px] opacity-80">({count})</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Toolbar: Search, Filters, Notion, Export & Add Job */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 p-2.5 sm:p-3 rounded-2xl border w-full" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1 min-w-0 w-full">
+            {/* Search Input */}
+            <div className="relative flex-1 min-w-0 w-full">
+              <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-text-muted" />
+              <input 
+                type="text"
+                placeholder="Search company, role..."
+                value={filters.search}
+                onChange={(e) => setFilters({ search: e.target.value })}
+                className="w-full border rounded-xl pl-9 pr-3 py-2 text-xs text-text-primary focus:outline-none transition-colors"
+                style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
+              />
+            </div>
+
+            {/* Dropdown Filters Row */}
+            <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto scrollbar-none pb-0.5">
+              <CustomDropdown
+                value={filters.source || 'all'}
+                onChange={(val) => setFilters({ source: val })}
+                options={[
+                  { value: 'all', label: 'All Sources' },
+                  ...sources.map(s => ({ value: s, label: s }))
+                ]}
+                size="sm"
+              />
+
+              <CustomDropdown
+                value={dateOption}
+                onChange={(val) => setDateOption(val)}
+                options={[
+                  { value: 'all', label: 'All Time' },
+                  { value: '7d', label: 'Last 7 Days' },
+                  { value: '30d', label: 'Last 30 Days' },
+                  { value: '90d', label: 'Last 90 Days' },
+                ]}
+                size="sm"
+              />
+
+              {isFiltered && (
+                <button
+                  onClick={() => {
+                    resetFilters();
+                    setDateOption('all');
+                    setActiveStatusFilter('all');
+                  }}
+                  className="text-xs text-text-muted hover:text-text-primary flex items-center space-x-1 cursor-pointer px-2 py-1 shrink-0 rounded-lg border"
+                  style={{ background: 'var(--bg-surface-raised)', borderColor: 'var(--border-subtle)' }}
+                >
+                  <RotateCcw size={11} />
+                  <span>Reset</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between sm:justify-end gap-1.5 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0" style={{ borderColor: 'var(--border-subtle)' }}>
+            {/* Notion Sync Button */}
+            <button 
+              onClick={handleSyncNotion} 
+              disabled={isSyncingNotion}
+              className="btn-secondary text-xs px-3 py-1.5 flex items-center space-x-1.5" 
+              title="Sync tracker pipeline into Notion database"
+            >
+              <Share2 size={13} className={isSyncingNotion ? 'animate-spin text-primary' : ''} />
+              <span className="hidden sm:inline">{isSyncingNotion ? 'Syncing...' : 'Notion Sync'}</span>
+            </button>
+
+            {/* Export CSV Button */}
+            <button 
+              onClick={handleExportCSV}
+              className="btn-secondary text-xs px-3 py-1.5 flex items-center space-x-1.5"
+              title="Export tracker applications to CSV"
+            >
+              <Download size={13} />
+              <span className="hidden sm:inline">Export CSV</span>
+            </button>
+
+            {/* Add Job Button */}
+            <button 
+              onClick={() => handleAddClick('Wishlist')} 
+              className="btn-primary text-xs px-4 py-1.5 font-bold flex items-center space-x-1.5"
+            >
+              <Plus size={14} />
+              <span>Add Job</span>
+            </button>
+          </div>
+        </div>
+
+        {/* ══════════════════════════════════════════════════════════════
+            CLEAN APPLICATION LIST SYSTEM
+            ══════════════════════════════════════════════════════════════ */}
+        <div className="space-y-3">
+          {filteredJobs.length === 0 ? (
+            <div className="card p-12 text-center flex flex-col items-center justify-center space-y-3" style={{ background: 'var(--bg-card)' }}>
+              <div className="p-3.5 rounded-full" style={{ background: 'var(--bg-surface-raised)' }}>
+                <Briefcase className="h-8 w-8 text-text-muted" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-text-primary">No applications found</h3>
+                <p className="text-xs text-text-muted mt-1 max-w-sm">
+                  {isFiltered ? 'Try clearing your filters to see more applications.' : 'Add your first job to begin tracking your pipeline.'}
+                </p>
+              </div>
+              <button
+                onClick={() => handleAddClick('Wishlist')}
+                className="btn-primary text-xs px-4 py-2 font-bold flex items-center space-x-1.5 mt-2"
+              >
+                <Plus size={14} />
+                <span>Add Application</span>
+              </button>
+            </div>
+          ) : (
+            filteredJobs.map((job) => {
+              const theme = STATUS_THEMES[job.status] || STATUS_THEMES.Wishlist;
+              const isStale = checkNeedsFollowUp(job, job.reminderDays || defaultReminderDays);
+              
+              return (
+                <div
+                  key={job.id}
+                  className="card p-4.5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition-all duration-200 hover:border-indigo-500/40 group"
+                  style={{
+                    background: 'var(--bg-card)',
+                    borderLeft: `4px solid ${theme.accent}`,
+                  }}
+                >
+                  {/* Left: Avatar + Title, Company, Location, Salary, Tags */}
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div className="opacity-0 group-hover:opacity-60 transition-opacity text-text-muted cursor-grab shrink-0 hidden sm:block" title="Drag to AI Copilot">
+                      <GripVertical size={16} />
+                    </div>
+                    <div 
+                      className="h-11 w-11 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 select-none text-white shadow-xs"
+                      style={{ 
+                        background: `linear-gradient(135deg, ${theme.accent} 0%, #312E81 100%)`,
+                      }}
+                    >
+                      {(job.company && job.company.length > 0) ? job.company.charAt(0).toUpperCase() : 'J'}
+                    </div>
+
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 
+                          onClick={() => handleEditClick(job)}
+                          className="text-sm font-bold font-display text-text-primary hover:text-primary transition-colors cursor-pointer"
+                        >
+                          {job.role}
+                        </h4>
+                        <span className="text-xs text-text-muted">•</span>
+                        <span className="text-xs font-semibold text-text-secondary">{job.company}</span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-muted">
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3.5 w-3.5 text-text-muted" />
+                          <span>{job.location}</span>
+                        </span>
+                        
+                        {job.sourceSite && (
+                          <>
+                            <span className="hidden sm:inline opacity-30">•</span>
+                            <span className="flex items-center gap-1">
+                              <Globe className="h-3.5 w-3.5 text-text-muted" />
+                              <span>{job.sourceSite}</span>
+                            </span>
+                          </>
+                        )}
+
+                        {job.salary && job.salary !== 'Not Specified' && (
+                          <>
+                            <span className="hidden sm:inline opacity-30">•</span>
+                            <span className="font-bold text-emerald-400">{job.salary}</span>
+                          </>
+                        )}
+
+                        <span className="hidden sm:inline opacity-30">•</span>
+                        <span className="text-[11px] text-text-muted">Applied: {job.dateApplied}</span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        {isStale && (
+                          <span 
+                            className="text-[9px] font-bold px-2 py-0.5 rounded-md border flex items-center space-x-1"
+                            style={{ background: 'rgba(245, 158, 11, 0.15)', color: 'var(--accent-signal)', borderColor: 'rgba(245, 158, 11, 0.3)' }}
+                          >
+                            <AlertCircle className="h-2.5 w-2.5" />
+                            <span>Follow-up Recommended</span>
+                          </span>
+                        )}
+                        {job.tags && job.tags.map(tag => (
+                          <span 
+                            key={tag} 
+                            className="text-[9px] font-semibold px-2 py-0.5 rounded-md border flex items-center space-x-1"
+                            style={{ background: 'var(--bg-surface-raised)', color: 'var(--text-secondary)', borderColor: 'var(--border-subtle)' }}
+                          >
+                            <Tag className="h-2 w-2" />
+                            <span>{tag}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="min-w-0 space-y-1.5 flex-1">
-                    <div className="flex items-center gap-2.5 flex-wrap">
-                      <h4 
-                        onClick={() => handleEditClick(job)}
-                        className="text-sm font-bold text-text-primary hover:text-cool cursor-pointer transition-colors font-display"
+                  {/* Right: Quick AI Actions, Inline Status Dropdown & Row Actions */}
+                  <div className="shrink-0 flex flex-wrap items-center gap-3 justify-between lg:justify-end border-t lg:border-0 pt-3 lg:pt-0" style={{ borderColor: 'var(--border-subtle)' }}>
+                    
+                    {/* Quick AI Action Buttons */}
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => setTailorJob(job)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer hover:scale-105"
+                        style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#818CF8', border: '1px solid rgba(99, 102, 241, 0.3)' }}
+                        title="AI Tailored Cover Letter"
                       >
-                        {job.role}
-                      </h4>
-                      <span 
-                        className="text-[10px] font-extrabold border px-2 py-0.5 rounded-lg select-none"
-                        style={{ background: 'var(--bg-surface-raised)', color: 'var(--text-secondary)', borderColor: 'var(--border-subtle)' }}
+                        <Sparkles className="h-3.5 w-3.5" />
+                        <span>Tailor</span>
+                      </button>
+
+                      <button
+                        onClick={() => setPrepJob(job)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer hover:scale-105"
+                        style={{ background: 'rgba(251, 146, 60, 0.15)', color: 'var(--status-interview)', border: '1px solid rgba(251, 146, 60, 0.3)' }}
+                        title="AI Interview Strategy & STAR Prep"
                       >
-                        {job.company}
-                      </span>
+                        <Target className="h-3.5 w-3.5" />
+                        <span>Prep</span>
+                      </button>
+
+                      <button
+                        onClick={() => setResumeJob(job)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer hover:scale-105"
+                        style={{ background: 'rgba(6, 182, 212, 0.15)', color: '#06B6D4', border: '1px solid rgba(6, 182, 212, 0.3)' }}
+                        title="Generate Role-Tailored ATS Resume (LaTeX)"
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                        <span>Resume</span>
+                      </button>
+
+                      <button
+                        onClick={() => setEmailJob(job)}
+                        className="p-1.5 rounded-lg text-xs text-text-muted hover:text-text-primary transition-all cursor-pointer hover:bg-surface-raised border"
+                        style={{ background: 'var(--bg-surface-raised)', borderColor: 'var(--border-subtle)' }}
+                        title="Draft Follow-up Email"
+                      >
+                        <Mail className="h-3.5 w-3.5" />
+                      </button>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-muted">
-                      <span className="flex items-center gap-1 select-none">
-                        <MapPin className="h-3.5 w-3.5 text-text-muted" />
-                        <span>{job.location}</span>
-                      </span>
-                      <span className="hidden sm:inline opacity-30">•</span>
-                      <span className="flex items-center gap-1 select-none">
-                        <Globe className="h-3.5 w-3.5 text-text-muted" />
-                        <span>{job.sourceSite}</span>
-                      </span>
-                      {job.salary && job.salary !== 'Not Specified' && (
-                        <>
-                          <span className="hidden sm:inline opacity-30">•</span>
-                          <span className="font-semibold text-success">{job.salary}</span>
-                        </>
-                      )}
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-1.5 pt-1 select-none">
-                      {isStale && (
-                        <span 
-                          className="text-[9px] font-extrabold px-2 py-0.5 rounded-lg border animate-pulse flex items-center space-x-1"
-                          style={{ background: 'rgba(245, 158, 11, 0.15)', color: 'var(--accent-signal)', borderColor: 'rgba(245, 158, 11, 0.3)' }}
-                        >
-                          <AlertCircle className="h-2.5 w-2.5" />
-                          <span>Follow Up Required</span>
-                        </span>
-                      )}
-                      {job.tags && job.tags.map(tag => (
-                        <span 
-                          key={tag} 
-                          className="text-[9px] font-bold px-2 py-0.5 rounded-lg border flex items-center space-x-1"
-                          style={{ background: 'var(--bg-surface-raised)', color: 'var(--text-secondary)', borderColor: 'var(--border-subtle)' }}
-                        >
-                          <Tag className="h-2 w-2" />
-                          <span>{tag}</span>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Status Selector & Actions */}
-                <div className="shrink-0 flex flex-row items-center gap-5 justify-between md:justify-end border-t md:border-0 pt-4 md:pt-0" style={{ borderColor: 'var(--border-subtle)' }}>
-                  <div className="flex flex-col gap-0.5">
-                    <label className="text-[9px] font-bold uppercase tracking-wider select-none text-text-muted">Pipeline Stage</label>
-                    <select
-                      value={job.status}
-                      onChange={async (e) => {
-                        const targetStatus = e.target.value as JobStatus;
+                    {/* Inline Custom Status Dropdown */}
+                    <StatusSelectDropdown
+                      status={job.status}
+                      onChange={async (targetStatus) => {
                         if (job.id) {
                           const todayStr = new Date().toISOString().split('T')[0];
                           const updatedHistory = [...(job.statusHistory || [])];
@@ -424,109 +561,104 @@ export const TrackerView: React.FC = () => {
                           });
                         }
                       }}
-                      className="border rounded-xl px-3 py-1.5 text-xs focus:outline-none font-extrabold cursor-pointer transition-all duration-200 select-none shadow-xs"
-                      style={{
-                        backgroundColor: theme.bg,
-                        color: theme.text,
-                        borderColor: theme.border
-                      }}
-                    >
-                      {COLUMNS.map((st) => (
-                        <option key={st} value={st} style={{ background: 'var(--bg-surface-raised)', color: 'var(--text-primary)' }}>
-                          {st}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                    />
 
-                  <div className="flex flex-col gap-0.5 text-right hidden lg:flex select-none">
-                    <span className="text-[9px] font-bold uppercase tracking-wider text-text-muted">Date Tracked</span>
-                    <span className="text-xs font-semibold text-text-primary flex items-center space-x-1 justify-end">
-                      <Calendar className="h-3.5 w-3.5 text-text-muted" />
-                      <span className="tabular-nums">{job.dateApplied}</span>
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 ml-2 border-l pl-4 self-stretch" style={{ borderColor: 'var(--border-subtle)' }}>
-                    {job.link && (
-                      <a
-                        href={job.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 hover:bg-surface-raised rounded-xl text-text-muted hover:text-text-primary transition-colors cursor-pointer"
-                        title="Open job description link"
+                    {/* Open Link, Edit & Delete */}
+                    <div className="flex items-center gap-1 border-l pl-2" style={{ borderColor: 'var(--border-subtle)' }}>
+                      {job.link && (
+                        <a
+                          href={job.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-2 hover:bg-surface-raised rounded-lg text-text-muted hover:text-text-primary transition-colors cursor-pointer"
+                          title="Open original job posting"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      )}
+                      <button
+                        onClick={() => handleEditClick(job)}
+                        className="p-2 hover:bg-surface-raised rounded-lg text-text-muted hover:text-text-primary transition-colors cursor-pointer"
+                        title="Edit Application"
                       >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
-                    )}
-                    <button
-                      onClick={() => handleEditClick(job)}
-                      className="p-2 hover:bg-surface-raised rounded-xl text-text-muted hover:text-text-primary transition-colors cursor-pointer"
-                      title="Edit Application"
-                    >
-                      <Edit2 className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      onClick={() => setDeleteConfirmJob(job)}
-                      className="p-2 hover:bg-danger/10 rounded-xl text-text-muted hover:text-danger transition-colors cursor-pointer"
-                      title="Delete Application"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setDeleteConfirmJob(job)}
+                        className="p-2 hover:bg-danger/10 rounded-lg text-text-muted hover:text-danger transition-colors cursor-pointer"
+                        title="Delete Application"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+
                   </div>
                 </div>
-              </div>
-            );
-          })
-        )}
+              );
+            })
+          )}
+        </div>
+
       </div>
 
       {/* Detail Modal */}
       <JobModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
-        jobToEdit={selectedJob} 
+        jobToEdit={selectedJob || undefined} 
       />
 
-      {/* Custom delete confirmation dialog overlay */}
-      {deleteConfirmJob && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in select-none">
-          <div className="fluent-card rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <div className="flex items-start space-x-3.5">
-              <div className="p-2.5 bg-danger/10 text-danger rounded-xl shrink-0">
-                <AlertCircle className="h-5 w-5" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-sm font-bold text-text-primary font-display">Permanently Delete Application?</h3>
-                <p className="text-xs text-text-muted leading-relaxed">
-                  Are you sure you want to remove the tracking pipeline entry for <span className="font-semibold text-text-primary">{deleteConfirmJob.role}</span> at <span className="font-semibold text-text-primary">{deleteConfirmJob.company}</span>? This action cannot be reversed.
-                </p>
-              </div>
-            </div>
-            <div className="flex justify-end space-x-3 pt-2">
-              <button
-                onClick={() => setDeleteConfirmJob(null)}
-                className="px-4 py-2.5 border text-text-primary font-semibold text-xs rounded-xl transition-all cursor-pointer"
-                style={{ background: 'var(--bg-surface-raised)', borderColor: 'var(--border-subtle)' }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  if (deleteConfirmJob.id) {
-                    await db.jobs.delete(deleteConfirmJob.id);
-                  }
-                  setDeleteConfirmJob(null);
-                }}
-                className="px-4 py-2.5 bg-danger hover:bg-danger/90 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-md"
-              >
-                Confirm Delete
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* AI Tailor Modal */}
+      {tailorJob && (
+        <AITailorModal
+          isOpen={Boolean(tailorJob)}
+          onClose={() => setTailorJob(null)}
+          job={tailorJob}
+        />
       )}
 
-    </>
+      {/* AI Interview Prep Modal */}
+      {prepJob && (
+        <InterviewPrepModal
+          isOpen={Boolean(prepJob)}
+          onClose={() => setPrepJob(null)}
+          job={prepJob}
+        />
+      )}
+
+      {/* Tailored ATS Resume Modal */}
+      {resumeJob && (
+        <TailoredResumeModal
+          isOpen={Boolean(resumeJob)}
+          onClose={() => setResumeJob(null)}
+          job={resumeJob}
+        />
+      )}
+
+      {/* Smart Email Composer Modal */}
+      {emailJob && (
+        <EmailGeneratorModal
+          isOpen={Boolean(emailJob)}
+          onClose={() => setEmailJob(null)}
+          job={emailJob}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(deleteConfirmJob)}
+        title="Delete Application"
+        message={`Are you sure you want to delete ${deleteConfirmJob?.role} at ${deleteConfirmJob?.company}? This action cannot be undone.`}
+        confirmText="Delete"
+        variant="danger"
+        onConfirm={async () => {
+          if (deleteConfirmJob?.id) {
+            await db.jobs.delete(deleteConfirmJob.id);
+          }
+          setDeleteConfirmJob(null);
+        }}
+        onCancel={() => setDeleteConfirmJob(null)}
+      />
+    </div>
   );
 };

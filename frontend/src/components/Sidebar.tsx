@@ -1,159 +1,166 @@
 import React from 'react';
-import { useUIStore, type AppTab, type AppTheme } from '../store/useUIStore';
+import { useUIStore, type AppTheme } from '../store/useUIStore';
+import { Logo } from './Logo';
 import {
   KanbanSquare,
   Search,
+  User,
   Settings,
-  Zap,
   Sun,
   Moon,
   Monitor,
 } from 'lucide-react';
 
-/* ─── Nav Items ─────────────────────────────────────────────────── */
-const NAV_ITEMS: {
-  id: AppTab;
-  label: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-  badge?: string;
-}[] = [
-  { id: 'search',   label: 'Search Hub',   icon: Search,       badge: 'Live' },
-  { id: 'tracker',  label: 'Tracker',      icon: KanbanSquare               },
-  { id: 'settings', label: 'Settings',     icon: Settings                   },
-];
-
-/* ─── Theme Options ──────────────────────────────────────────────── */
 const THEME_OPTIONS: {
   id: AppTheme;
   icon: React.ComponentType<{ size?: number }>;
   label: string;
 }[] = [
-  { id: 'light',  icon: Sun,     label: 'Light Mode'  },
-  { id: 'dark',   icon: Moon,    label: 'Dark Mode'   },
-  { id: 'system', icon: Monitor, label: 'System Mode' },
+  { id: 'light',  icon: Sun,     label: 'Light'  },
+  { id: 'dark',   icon: Moon,    label: 'Dark'   },
+  { id: 'system', icon: Monitor, label: 'Auto'   },
 ];
 
-/* ═══════════════════════════════════════════════════════════════════
-   PERMANENT COMPACT ICON-RAIL SIDEBAR
-   ═══════════════════════════════════════════════════════════════════ */
-export const Sidebar: React.FC = () => {
+export const TopNavbar: React.FC = () => {
   const { activeTab, setActiveTab, theme, setTheme } = useUIStore();
 
   return (
-    <aside className="app-sidebar">
-
-      {/* ── Brand / Logo ── */}
-      <div className="sidebar-brand">
-        <div className="sidebar-logo-mark" title="JobFinder PRO">
-          <Zap size={18} />
+    <header className="app-topbar relative hidden md:flex">
+      {/* ── Left: Brand / Logo ── */}
+      <div className="flex items-center">
+        <div 
+          onClick={() => setActiveTab('search')}
+          className="flex items-center space-x-2.5 cursor-pointer hover:opacity-90 transition-opacity select-none"
+          title="JobFinder"
+        >
+          <Logo size={28} />
+          <span 
+            className="font-display font-black text-base tracking-tight"
+            style={{ 
+              background: "linear-gradient(135deg, #FFFFFF 0%, #38BDF8 50%, #818CF8 100%)", 
+              WebkitBackgroundClip: "text", 
+              WebkitTextFillColor: "transparent" 
+            }}
+          >
+            JobFinder
+          </span>
         </div>
       </div>
 
-      <div className="sidebar-divider" />
+      {/* ── Center: Main Navigation Tabs (Search Hub & Tracker) ── */}
+      <nav className="absolute left-1/2 -translate-x-1/2 flex items-center space-x-1.5">
+        {/* 1. Search Hub */}
+        <button
+          type="button"
+          onClick={() => setActiveTab('search')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer ${
+            activeTab === 'search'
+              ? 'font-bold shadow-xs' 
+              : 'text-text-muted hover:text-text-primary hover:bg-surface-raised/50'
+          }`}
+          style={{
+            background: activeTab === 'search' ? 'var(--sidebar-item-active)' : 'transparent',
+            color: activeTab === 'search' ? 'var(--accent-primary)' : 'var(--text-muted)',
+            border: activeTab === 'search' ? '1px solid var(--border-highlight)' : '1px solid transparent'
+          }}
+        >
+          <Search size={14} className={activeTab === 'search' ? 'text-primary' : ''} />
+          <span>Search Job</span>
+        </button>
 
-      {/* ── Navigation (Icon Rail) ── */}
-      <nav className="sidebar-nav">
-        {NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeTab === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`sidebar-nav-item${isActive ? ' active' : ''}`}
-              title={item.label}
-            >
-              <Icon size={18} className="sidebar-nav-icon" />
-            </button>
-          );
-        })}
+        {/* 2. Tracker */}
+        <button
+          type="button"
+          onClick={() => setActiveTab('tracker')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer ${
+            activeTab === 'tracker'
+              ? 'font-bold shadow-xs' 
+              : 'text-text-muted hover:text-text-primary hover:bg-surface-raised/50'
+          }`}
+          style={{
+            background: activeTab === 'tracker' ? 'var(--sidebar-item-active)' : 'transparent',
+            color: activeTab === 'tracker' ? 'var(--accent-primary)' : 'var(--text-muted)',
+            border: activeTab === 'tracker' ? '1px solid var(--border-highlight)' : '1px solid transparent'
+          }}
+        >
+          <KanbanSquare size={14} className={activeTab === 'tracker' ? 'text-primary' : ''} />
+          <span>Tracker</span>
+        </button>
+
+        {/* 3. Candidate Profile */}
+        <button
+          type="button"
+          onClick={() => setActiveTab('profile')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer ${
+            activeTab === 'profile'
+              ? 'font-bold shadow-xs' 
+              : 'text-text-muted hover:text-text-primary hover:bg-surface-raised/50'
+          }`}
+          style={{
+            background: activeTab === 'profile' ? 'var(--sidebar-item-active)' : 'transparent',
+            color: activeTab === 'profile' ? 'var(--accent-primary)' : 'var(--text-muted)',
+            border: activeTab === 'profile' ? '1px solid var(--border-highlight)' : '1px solid transparent'
+          }}
+        >
+          <User size={14} className={activeTab === 'profile' ? 'text-primary' : ''} />
+          <span>Candidate Profile</span>
+        </button>
       </nav>
 
-      {/* ── Spacer ── */}
-      <div style={{ flex: 1 }} />
+      {/* ── Right Corner: Settings & Theme Switcher ── */}
+      <div className="flex items-center space-x-2.5">
+        {/* Settings Button */}
+        <button
+          type="button"
+          onClick={() => setActiveTab('settings')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer ${
+            activeTab === 'settings'
+              ? 'font-bold shadow-xs' 
+              : 'text-text-muted hover:text-text-primary hover:bg-surface-raised'
+          }`}
+          style={{
+            background: activeTab === 'settings' ? 'var(--sidebar-item-active)' : 'transparent',
+            color: activeTab === 'settings' ? 'var(--accent-primary)' : 'var(--text-muted)',
+            border: activeTab === 'settings' ? '1px solid var(--border-highlight)' : '1px solid transparent'
+          }}
+          title="Settings & Scrapers"
+        >
+          <Settings size={14} className={activeTab === 'settings' ? 'text-primary' : ''} />
+          <span className="hidden sm:inline">Settings</span>
+        </button>
 
-      {/* ── Footer: Status + Theme toggle ── */}
-      <div className="sidebar-footer">
-        <div className="sidebar-status-row" title="Local Engine Active">
-          <span className="sidebar-status-dot" />
-        </div>
-        <div className="sidebar-theme-row">
+        {/* 3-Way Theme Switcher */}
+        <div 
+          className="flex items-center p-0.5 rounded-xl border"
+          style={{ background: 'var(--bg-surface-raised)', borderColor: 'var(--border-subtle)' }}
+        >
           {THEME_OPTIONS.map((opt) => {
             const Icon = opt.icon;
+            const isSelected = theme === opt.id;
             return (
               <button
                 key={opt.id}
                 onClick={() => setTheme(opt.id)}
-                className={`sidebar-theme-btn${theme === opt.id ? ' active' : ''}`}
-                title={opt.label}
+                className={`p-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1 transition-all cursor-pointer ${
+                  isSelected ? 'bg-card text-primary shadow-xs' : 'text-text-muted hover:text-text-primary'
+                }`}
+                style={{
+                  background: isSelected ? 'var(--bg-card)' : 'transparent',
+                  color: isSelected ? 'var(--text-primary)' : 'var(--text-muted)'
+                }}
+                title={`${opt.label} Theme`}
               >
-                <Icon size={14} />
+                <Icon size={13} />
+                <span className="hidden lg:inline text-[11px]">{opt.label}</span>
               </button>
             );
           })}
         </div>
       </div>
-
-    </aside>
+    </header>
   );
 };
 
-/* ═══════════════════════════════════════════════════════════════════
-   MOBILE TOP BAR (≤ 768px)
-   ═══════════════════════════════════════════════════════════════════ */
-export const MobileTopBar: React.FC = () => {
-  const { activeTab, setActiveTab, theme, setTheme } = useUIStore();
-
-  return (
-    <div className="mobile-topbar">
-      {/* Brand */}
-      <div className="mobile-topbar-brand">
-        <div
-          style={{
-            width: 28, height: 28, borderRadius: 8,
-            background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 60%, #06B6D4 100%)',
-            display: 'flex', flexShrink: 0, alignItems: 'center', justifyContent: 'center', color: 'white',
-          }}
-        >
-          <Zap size={14} />
-        </div>
-        <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, color: '#F1F5F9' }}>
-          JobFinder
-        </span>
-      </div>
-
-      {/* Nav icons */}
-      <div className="mobile-topbar-nav">
-        {NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeTab === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`mobile-topbar-btn${isActive ? ' active' : ''}`}
-              title={item.label}
-            >
-              <Icon size={17} />
-            </button>
-          );
-        })}
-
-        {/* Theme toggle (cycle) */}
-        <button
-          className="mobile-topbar-btn"
-          onClick={() => {
-            const next: AppTheme = theme === 'dark' ? 'light' : theme === 'light' ? 'system' : 'dark';
-            setTheme(next);
-          }}
-          title="Toggle Theme"
-        >
-          {theme === 'dark' ? <Sun size={16} style={{ color: '#FBBF24' }} /> : theme === 'light' ? <Moon size={16} style={{ color: '#94A3B8' }} /> : <Monitor size={16} />}
-        </button>
-      </div>
-    </div>
-  );
-};
-
-/* Backward compat alias — App.tsx still imports `Navbar` */
-export const Navbar = Sidebar;
+export const Sidebar = TopNavbar;
+export const Navbar = TopNavbar;
+export const MobileTopBar: React.FC = () => null;

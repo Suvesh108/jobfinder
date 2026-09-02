@@ -1,6 +1,10 @@
-import { naukriAdapter, indeedAdapter, glassdoorAdapter } from './naukriIndeedAdapter';
-import { linkedinAdapter } from './linkedinAdapter';
-import { internshalaAdapter } from './internshalaAdapter';
+import { 
+  naukriAdapter, 
+  indeedAdapter, 
+  linkedinAdapter, 
+  glassdoorAdapter, 
+  zipRecruiterAdapter 
+} from './naukriIndeedAdapter';
 import type { JobAdapter } from './types';
 
 export const adapters: JobAdapter[] = [
@@ -8,8 +12,9 @@ export const adapters: JobAdapter[] = [
   indeedAdapter,
   linkedinAdapter,
   glassdoorAdapter,
-  internshalaAdapter,
+  zipRecruiterAdapter,
 ];
 
 export * from './types';
 export type { JobStatus } from '../db/schema';
+

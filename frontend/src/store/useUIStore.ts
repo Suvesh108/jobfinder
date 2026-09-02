@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type AppTab = 'tracker' | 'search' | 'settings';
+export type AppTab = 'tracker' | 'search' | 'profile' | 'settings';
 export type AppTheme = 'dark' | 'light' | 'system';
 
 export interface TrackerFilters {
@@ -82,7 +82,7 @@ export const useUIStore = create<UIStore>()(
       defaultReminderDays: 14,
       setDefaultReminderDays: (days) => set({ defaultReminderDays: days }),
       
-      enabledAdapters: ['naukri', 'indeed', 'linkedin', 'glassdoor', 'internshala'],
+      enabledAdapters: ['naukri', 'indeed', 'linkedin', 'glassdoor', 'zip_recruiter'],
       toggleAdapter: (id) => 
         set((state) => {
           const enabled = state.enabledAdapters.includes(id)

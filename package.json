@@ -11,8 +11,7 @@
     "lint": "cd frontend && npm run lint",
     "preview": "cd frontend && npm run preview",
     "scraper:jobspy": "cd backend/scraper-service-py && .\\venv\\Scripts\\uvicorn main:app --port 8000",
-    "scraper:linkedin": "cd backend/scraper-service-linkedin && node index.js",
-    "dev:all": "concurrently \"npm run dev:frontend\" \"npm run scraper:jobspy\" \"npm run scraper:linkedin\""
+    "dev:all": "concurrently \"npm run dev:frontend\" \"npm run scraper:jobspy\""
   },
   "devDependencies": {
     "concurrently": "^10.0.3"

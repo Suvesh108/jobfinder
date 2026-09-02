@@ -3,13 +3,14 @@ import { createPortal } from 'react-dom';
 import { db, type JobApplication, type JobStatus } from '../db/schema';
 import { parseJobUrl } from '../utils/helpers';
 import { useUIStore } from '../store/useUIStore';
-import { X, Globe, Plus, Trash2, Calendar, DollarSign, MapPin, Link2, Tag, User, Clock } from 'lucide-react';
+import { X, Globe, Plus, Trash2, Calendar, DollarSign, MapPin, Link2, Tag, Clock, Building2 } from 'lucide-react';
 import { ConfirmModal } from './ConfirmModal';
+import { StatusSelectDropdown } from './CustomDropdown';
 
 interface JobModalProps {
   isOpen: boolean;
   onClose: () => void;
-  jobToEdit?: JobApplication;
+  jobToEdit?: Partial<JobApplication>;
 }
 
 const AVAILABLE_STATUSES: JobStatus[] = [
@@ -22,18 +23,18 @@ const AVAILABLE_STATUSES: JobStatus[] = [
   'Withdrawn',
 ];
 
-const COMMON_TAGS = ['referral', 'cold apply', 'high priority', 'wfh', 'remote', 'product-based', 'service-based'];
+const COMMON_TAGS = ['referral', 'cold apply', 'high priority', 'remote', 'hybrid', 'product-based', 'service-based'];
 
 const getStatusColor = (status: string): string => {
   switch (status) {
-    case 'Wishlist': return '#8892A6';
-    case 'Applied': return '#5B8CFF';
-    case 'OA/Assessment': return '#C084FC';
+    case 'Wishlist': return '#64748B';
+    case 'Applied': return '#6366F1';
+    case 'OA/Assessment': return '#A855F7';
     case 'Interview': return '#FB923C';
-    case 'Offer': return '#4ADE80';
-    case 'Rejected': return '#F26B6B';
-    case 'Withdrawn': return '#94A3B8';
-    default: return '#8892A6';
+    case 'Offer': return '#10B981';
+    case 'Rejected': return '#EF4444';
+    case 'Withdrawn': return '#64748B';
+    default: return '#6366F1';
   }
 };
 
@@ -105,7 +106,7 @@ export const JobModal: React.FC<JobModalProps> = ({ isOpen, onClose, jobToEdit }
       setSourceSite(jobToEdit.sourceSite || '');
       setLink(jobToEdit.link || '');
       setDateApplied(sanitizeDate(jobToEdit.dateApplied));
-      setStatus(AVAILABLE_STATUSES.includes(jobToEdit.status) ? jobToEdit.status : 'Wishlist');
+      setStatus(jobToEdit.status && AVAILABLE_STATUSES.includes(jobToEdit.status) ? jobToEdit.status : 'Wishlist');
       setNotes(jobToEdit.notes || '');
       setTags(Array.isArray(jobToEdit.tags) ? jobToEdit.tags.filter(Boolean) : []);
       setContactName(jobToEdit.contactName || '');
@@ -249,27 +250,27 @@ export const JobModal: React.FC<JobModalProps> = ({ isOpen, onClose, jobToEdit }
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] overflow-y-auto bg-black/75 flex items-center justify-center p-4 backdrop-blur-md">
+    <div className="fixed inset-0 z-[9999] overflow-y-auto bg-black/70 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in">
       <div 
-        className="fluent-card w-full max-w-3xl rounded-3xl overflow-hidden max-h-[90vh] flex flex-col border shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+        className="card w-full max-w-3xl rounded-2xl overflow-hidden max-h-[90vh] flex flex-col border shadow-2xl"
         style={{
-          background: 'var(--bg-surface-raised)',
+          background: 'var(--bg-card)',
           borderColor: 'var(--border-subtle)',
-          boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.8)',
+          boxShadow: 'var(--shadow-xl)',
         }}
       >
         
         {/* Modal Header */}
-        <div className="px-6 py-4 border-b flex items-center justify-between" style={{ background: 'var(--bg-surface-raised)', borderColor: 'var(--border-subtle)' }}>
-          <h2 className="text-md font-bold font-display text-text-primary flex items-center space-x-2">
-            <span>{jobToEdit ? 'Edit Campaign Card' : 'Initiate Job Tracking'}</span>
+        <div className="px-6 py-4 border-b flex items-center justify-between" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
+          <h2 className="text-sm font-bold font-display text-text-primary flex items-center space-x-2">
+            <span>{jobToEdit ? 'Edit Application Details' : 'Add New Application'}</span>
           </h2>
           <button 
             onClick={onClose}
             className="p-1 rounded-lg text-text-muted hover:text-text-primary transition-colors cursor-pointer"
-            style={{ background: 'var(--bg-surface)' }}
+            style={{ background: 'var(--bg-surface-raised)' }}
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 
@@ -278,34 +279,35 @@ export const JobModal: React.FC<JobModalProps> = ({ isOpen, onClose, jobToEdit }
           
           {/* Add from URL section */}
           {!jobToEdit && (
-            <div className="p-4 bg-cool/5 rounded-xl border border-cool/10 space-y-3">
-              <label className="text-[10px] font-bold text-cool uppercase tracking-wider flex items-center space-x-2">
+            <div className="p-4 rounded-xl border space-y-3" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-glow)' }}>
+              <label className="text-[10px] font-bold text-primary uppercase tracking-wider flex items-center space-x-2">
                 <Globe className="h-4 w-4" />
-                <span>Import from Live Posting Link</span>
+                <span>Import from Live Job Link</span>
               </label>
               <div className="flex gap-2">
                 <input 
                   type="text"
-                  placeholder="Paste Naukri, Indeed, Apna, Internshala, or Wellfound link..."
+                  placeholder="Paste Naukri, Indeed, LinkedIn, Internshala, or Glassdoor URL..."
                   value={urlInput}
                   onChange={(e) => setUrlInput(e.target.value)}
-                  className="flex-1 bg-void border border-white/[0.05] rounded-xl px-4 py-2 text-xs text-text-primary focus:outline-none focus:border-cool transition-colors"
+                  className="flex-1 border rounded-xl px-4 py-2 text-xs text-text-primary focus:outline-none transition-colors"
+                  style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
                 />
                 <button
                   type="button"
                   onClick={handleParseUrl}
                   disabled={isParsing}
-                  className="bg-cool hover:bg-cool/90 disabled:bg-cool/20 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-md active:scale-95 flex items-center space-x-2 cursor-pointer shrink-0"
+                  className="btn-primary text-xs px-4 py-2"
                 >
                   {isParsing ? (
                     <Clock className="h-4 w-4 animate-spin" />
                   ) : (
-                    <span>Extract Data</span>
+                    <span>Extract Info</span>
                   )}
                 </button>
               </div>
               {parseMessage && (
-                <p className={`text-[10px] font-medium ${parseMessage.type === 'success' ? 'text-success' : 'text-danger'}`}>
+                <p className={`text-[11px] font-semibold ${parseMessage.type === 'success' ? 'text-success' : 'text-danger'}`}>
                   {parseMessage.text}
                 </p>
               )}
@@ -321,21 +323,22 @@ export const JobModal: React.FC<JobModalProps> = ({ isOpen, onClose, jobToEdit }
               <div>
                 <label className="block text-[10px] font-bold text-text-muted mb-1.5 uppercase tracking-wider">Company *</label>
                 <div className="relative">
-                  <User className="absolute left-3.5 top-2.5 h-4 w-4 text-text-muted" />
+                  <Building2 className="absolute left-3.5 top-2.5 h-4 w-4 text-text-muted" />
                   <input
                     type="text"
                     required
                     placeholder="e.g. Zepto, Groww, TCS"
                     value={company}
                     onChange={(e) => setCompany(e.target.value)}
-                    className="w-full bg-void border border-white/[0.05] rounded-xl pl-10 pr-4 py-2 text-xs text-text-primary focus:outline-none focus:border-cool transition-colors"
+                    className="w-full border rounded-xl pl-10 pr-4 py-2 text-xs text-text-primary focus:outline-none transition-colors"
+                    style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
                   />
                 </div>
               </div>
 
               {/* Role */}
               <div>
-                <label className="block text-[10px] font-bold text-text-muted mb-1.5 uppercase tracking-wider">Job Title / Role *</label>
+                <label className="block text-[10px] font-bold text-text-muted mb-1.5 uppercase tracking-wider">Job Role / Title *</label>
                 <div className="relative">
                   <Plus className="absolute left-3.5 top-2.5 h-4 w-4 text-text-muted" />
                   <input
@@ -344,7 +347,8 @@ export const JobModal: React.FC<JobModalProps> = ({ isOpen, onClose, jobToEdit }
                     placeholder="e.g. React Developer"
                     value={role}
                     onChange={(e) => setRole(e.target.value)}
-                    className="w-full bg-void border border-white/[0.05] rounded-xl pl-10 pr-4 py-2 text-xs text-text-primary focus:outline-none focus:border-cool transition-colors"
+                    className="w-full border rounded-xl pl-10 pr-4 py-2 text-xs text-text-primary focus:outline-none transition-colors"
+                    style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
                   />
                 </div>
               </div>
@@ -359,7 +363,8 @@ export const JobModal: React.FC<JobModalProps> = ({ isOpen, onClose, jobToEdit }
                     placeholder="e.g. Bengaluru, Remote"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
-                    className="w-full bg-void border border-white/[0.05] rounded-xl pl-10 pr-4 py-2 text-xs text-text-primary focus:outline-none focus:border-cool transition-colors"
+                    className="w-full border rounded-xl pl-10 pr-4 py-2 text-xs text-text-primary focus:outline-none transition-colors"
+                    style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
                   />
                 </div>
               </div>
@@ -374,7 +379,8 @@ export const JobModal: React.FC<JobModalProps> = ({ isOpen, onClose, jobToEdit }
                     placeholder="e.g. 12 LPA"
                     value={salary}
                     onChange={(e) => setSalary(e.target.value)}
-                    className="w-full bg-void border border-white/[0.05] rounded-xl pl-10 pr-4 py-2 text-xs text-text-primary focus:outline-none focus:border-cool transition-colors"
+                    className="w-full border rounded-xl pl-10 pr-4 py-2 text-xs text-text-primary focus:outline-none transition-colors"
+                    style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
                   />
                 </div>
               </div>
@@ -388,23 +394,20 @@ export const JobModal: React.FC<JobModalProps> = ({ isOpen, onClose, jobToEdit }
                     type="date"
                     value={dateApplied}
                     onChange={(e) => setDateApplied(e.target.value)}
-                    className="w-full bg-void border border-white/[0.05] rounded-xl pl-10 pr-4 py-2 text-xs text-text-primary focus:outline-none focus:border-cool transition-colors"
+                    className="w-full border rounded-xl pl-10 pr-4 py-2 text-xs text-text-primary focus:outline-none transition-colors"
+                    style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
                   />
                 </div>
               </div>
 
               {/* Status */}
               <div>
-                <label className="block text-[10px] font-bold text-text-muted mb-1.5 uppercase tracking-wider">Current Status</label>
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value as JobStatus)}
-                  className="w-full bg-void border border-white/[0.05] rounded-xl px-4 py-2.5 text-xs text-text-primary focus:outline-none focus:border-cool transition-colors"
-                >
-                  {AVAILABLE_STATUSES.map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
+                <label className="block text-[10px] font-bold text-text-muted mb-1.5 uppercase tracking-wider">Pipeline Stage</label>
+                <StatusSelectDropdown
+                  status={status}
+                  onChange={(newStatus: JobStatus) => setStatus(newStatus)}
+                  className="w-full"
+                />
               </div>
             </div>
 
@@ -412,41 +415,44 @@ export const JobModal: React.FC<JobModalProps> = ({ isOpen, onClose, jobToEdit }
             <div className="space-y-4">
               {/* Source Site */}
               <div>
-                <label className="block text-[10px] font-bold text-text-muted mb-1.5 uppercase tracking-wider">Source Site / Platform</label>
+                <label className="block text-[10px] font-bold text-text-muted mb-1.5 uppercase tracking-wider">Source Site / Channel</label>
                 <input
                   type="text"
                   placeholder="e.g. LinkedIn, Naukri, Direct Apply"
                   value={sourceSite}
                   onChange={(e) => setSourceSite(e.target.value)}
-                  className="w-full bg-void border border-white/[0.05] rounded-xl px-4 py-2 text-xs text-text-primary focus:outline-none focus:border-cool transition-colors"
+                  className="w-full border rounded-xl px-4 py-2 text-xs text-text-primary focus:outline-none transition-colors"
+                  style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
                 />
               </div>
 
               {/* Job Posting Link */}
               <div>
-                <label className="block text-[10px] font-bold text-text-muted mb-1.5 uppercase tracking-wider">Posting URL / Link</label>
+                <label className="block text-[10px] font-bold text-text-muted mb-1.5 uppercase tracking-wider">Posting URL</label>
                 <div className="relative">
                   <Link2 className="absolute left-3.5 top-2.5 h-4 w-4 text-text-muted" />
                   <input
                     type="url"
-                    placeholder="Paste full URL..."
+                    placeholder="Paste original link..."
                     value={link}
                     onChange={(e) => setLink(e.target.value)}
-                    className="w-full bg-void border border-white/[0.05] rounded-xl pl-10 pr-4 py-2 text-xs text-text-primary focus:outline-none focus:border-cool transition-colors"
+                    className="w-full border rounded-xl pl-10 pr-4 py-2 text-xs text-text-primary focus:outline-none transition-colors"
+                    style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
                   />
                 </div>
               </div>
 
               {/* Contact Person Details */}
-              <div className="p-3 bg-void/50 rounded-xl border border-white/[0.04] space-y-2">
+              <div className="p-3 rounded-xl border space-y-2" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
                 <span className="text-[10px] font-bold text-text-muted block uppercase tracking-wider mb-1">Contact Person (Optional)</span>
                 <div className="grid grid-cols-1 gap-2">
                   <input
                     type="text"
-                    placeholder="Contact Name"
+                    placeholder="Contact Name / Recruiter"
                     value={contactName}
                     onChange={(e) => setContactName(e.target.value)}
-                    className="w-full bg-void border border-white/[0.05] rounded-lg px-3 py-1.5 text-xs text-text-primary focus:outline-none focus:border-cool"
+                    className="w-full border rounded-lg px-3 py-1.5 text-xs text-text-primary focus:outline-none"
+                    style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <input
@@ -454,14 +460,16 @@ export const JobModal: React.FC<JobModalProps> = ({ isOpen, onClose, jobToEdit }
                       placeholder="Email"
                       value={contactEmail}
                       onChange={(e) => setContactEmail(e.target.value)}
-                      className="w-full bg-void border border-white/[0.05] rounded-lg px-3 py-1.5 text-xs text-text-primary focus:outline-none focus:border-cool"
+                      className="w-full border rounded-lg px-3 py-1.5 text-xs text-text-primary focus:outline-none"
+                      style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
                     />
                     <input
                       type="tel"
                       placeholder="Phone"
                       value={contactPhone}
                       onChange={(e) => setContactPhone(e.target.value)}
-                      className="w-full bg-void border border-white/[0.05] rounded-lg px-3 py-1.5 text-xs text-text-primary focus:outline-none focus:border-cool"
+                      className="w-full border rounded-lg px-3 py-1.5 text-xs text-text-primary focus:outline-none"
+                      style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
                     />
                   </div>
                 </div>
@@ -478,7 +486,8 @@ export const JobModal: React.FC<JobModalProps> = ({ isOpen, onClose, jobToEdit }
                     min="1"
                     value={reminderDays}
                     onChange={(e) => setReminderDays(Number(e.target.value))}
-                    className="w-20 bg-void border border-white/[0.05] rounded-xl px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-cool"
+                    className="w-20 border rounded-xl px-3 py-2 text-xs text-text-primary font-bold focus:outline-none"
+                    style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
                   />
                   <span className="text-xs text-text-muted">Days without status updates</span>
                 </div>
@@ -489,20 +498,21 @@ export const JobModal: React.FC<JobModalProps> = ({ isOpen, onClose, jobToEdit }
             <div className="md:col-span-2 space-y-2">
               <label className="block text-[10px] font-bold text-text-muted mb-1.5 uppercase tracking-wider flex items-center space-x-1">
                 <Tag className="h-3.5 w-3.5" />
-                <span>Tags &amp; Labels</span>
+                <span>Tags &amp; Categories</span>
               </label>
               
-              <div className="flex flex-wrap gap-1.5 min-h-[30px] p-2 bg-void border border-white/[0.05] rounded-xl">
+              <div className="flex flex-wrap gap-1.5 min-h-[30px] p-2 border rounded-xl" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}>
                 {tags.map(t => (
                   <span 
                     key={t}
-                    className="flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white/5 text-text-primary border border-white/[0.05]"
+                    className="flex items-center space-x-1 px-2.5 py-0.5 rounded-md text-xs font-semibold"
+                    style={{ background: 'var(--sidebar-item-active)', color: 'var(--accent-primary)', border: '1px solid var(--border-glow)' }}
                   >
                     <span>{t}</span>
                     <button 
                       type="button" 
                       onClick={() => removeTag(t)}
-                      className="text-text-muted hover:text-text-primary font-bold ml-1 cursor-pointer"
+                      className="text-text-muted hover:text-danger font-bold ml-1 cursor-pointer"
                     >
                       &times;
                     </button>
@@ -516,16 +526,17 @@ export const JobModal: React.FC<JobModalProps> = ({ isOpen, onClose, jobToEdit }
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="Type a tag and press Add"
+                  placeholder="Type a tag and press Add..."
                   value={newTagInput}
                   onChange={(e) => setNewTagInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(newTagInput))}
-                  className="flex-1 bg-void border border-white/[0.05] rounded-xl px-4 py-1.5 text-xs text-text-primary focus:outline-none focus:border-cool"
+                  className="flex-1 border rounded-xl px-4 py-1.5 text-xs text-text-primary focus:outline-none"
+                  style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
                 />
                 <button
                   type="button"
                   onClick={() => addTag(newTagInput)}
-                  className="bg-surface hover:bg-surface-raised border border-white/[0.06] text-text-primary text-xs font-semibold px-4 py-1.5 rounded-xl transition-all cursor-pointer"
+                  className="btn-secondary text-xs px-4 py-1.5 rounded-xl font-semibold"
                 >
                   Add Tag
                 </button>
@@ -533,13 +544,14 @@ export const JobModal: React.FC<JobModalProps> = ({ isOpen, onClose, jobToEdit }
 
               {/* Suggestions */}
               <div className="flex flex-wrap gap-1.5 pt-1.5">
-                <span className="text-[9px] text-text-muted uppercase font-bold self-center mr-1">Suggestions:</span>
+                <span className="text-[9px] text-text-muted uppercase font-bold self-center mr-1">Quick Tags:</span>
                 {COMMON_TAGS.filter(ct => !tags.includes(ct)).map(ct => (
                   <button
                     key={ct}
                     type="button"
                     onClick={() => addTag(ct)}
-                    className="text-[9px] px-2 py-0.5 bg-surface-raised hover:bg-void border border-white/[0.04] text-text-muted hover:text-text-primary rounded-md transition-colors cursor-pointer"
+                    className="text-[10px] px-2 py-0.5 border rounded-md transition-colors cursor-pointer"
+                    style={{ background: 'var(--bg-surface-raised)', borderColor: 'var(--border-subtle)', color: 'var(--text-muted)' }}
                   >
                     + {ct}
                   </button>
@@ -549,32 +561,33 @@ export const JobModal: React.FC<JobModalProps> = ({ isOpen, onClose, jobToEdit }
 
             {/* Notes */}
             <div className="md:col-span-2">
-              <label className="block text-[10px] font-bold text-text-muted mb-1.5 uppercase tracking-wider">Notes &amp; Tasks</label>
+              <label className="block text-[10px] font-bold text-text-muted mb-1.5 uppercase tracking-wider">Notes &amp; Next Steps</label>
               <textarea
                 rows={3}
-                placeholder="Details, next steps, syllabus, HR contacts..."
+                placeholder="Interview rounds, prep notes, salary expectations, HR contacts..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full bg-void border border-white/[0.05] rounded-xl px-4 py-2 text-xs text-text-primary focus:outline-none focus:border-cool transition-colors"
+                className="w-full border rounded-xl px-4 py-2 text-xs text-text-primary focus:outline-none transition-colors"
+                style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
               />
             </div>
           </form>
 
           {/* Status Timeline History Log */}
           {jobToEdit && (
-            <div className="border-t border-white/[0.06] pt-6">
+            <div className="border-t pt-6" style={{ borderColor: 'var(--border-subtle)' }}>
               <h4 className="text-xs font-bold text-text-primary uppercase tracking-wider font-display mb-4 flex items-center space-x-2">
-                <Clock className="h-4 w-4 text-cool" />
-                <span>Campaign History Log</span>
+                <Clock className="h-4 w-4 text-primary" />
+                <span>Application History Timeline</span>
               </h4>
-              <div className="relative border-l border-white/[0.06] ml-2 pl-4 py-1 space-y-4">
+              <div className="relative border-l ml-2 pl-4 py-1 space-y-4" style={{ borderColor: 'var(--border-subtle)' }}>
                 {jobToEdit.statusHistory && jobToEdit.statusHistory.length > 0 ? (
                   jobToEdit.statusHistory.filter(h => Boolean(h && h.status)).map((h, idx) => (
                     <div key={idx} className="relative">
                       {/* Timeline dot with color coding matching status color */}
                       <span 
-                        className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-[#131826] transition-all duration-300"
-                        style={{ backgroundColor: getStatusColor(h.status) }}
+                        className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full transition-all duration-300"
+                        style={{ backgroundColor: getStatusColor(h.status), boxShadow: '0 0 0 4px var(--bg-card)' }}
                       />
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                         <span className="text-xs font-medium text-text-primary">
@@ -587,7 +600,7 @@ export const JobModal: React.FC<JobModalProps> = ({ isOpen, onClose, jobToEdit }
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-text-muted italic">No status events registered.</p>
+                  <p className="text-xs text-text-muted italic">No status changes recorded yet.</p>
                 )}
               </div>
             </div>
@@ -595,16 +608,17 @@ export const JobModal: React.FC<JobModalProps> = ({ isOpen, onClose, jobToEdit }
         </div>
 
         {/* Modal Footer */}
-        <div className="px-6 py-4 bg-surface-raised/40 border-t border-white/[0.06] flex items-center justify-between">
+        <div className="px-6 py-4 border-t flex items-center justify-between" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
           <div>
             {jobToEdit && (
               <button
                 type="button"
                 onClick={handleDelete}
-                className="text-danger hover:bg-danger/10 px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer"
+                className="btn-secondary text-xs px-3 py-1.5 rounded-xl font-bold flex items-center space-x-1.5"
+                style={{ color: 'var(--status-danger)', borderColor: 'rgba(239, 68, 68, 0.3)' }}
               >
                 <Trash2 className="h-4 w-4" />
-                <span>Delete Card</span>
+                <span>Delete</span>
               </button>
             )}
           </div>
@@ -612,16 +626,16 @@ export const JobModal: React.FC<JobModalProps> = ({ isOpen, onClose, jobToEdit }
             <button
               type="button"
               onClick={onClose}
-              className="bg-void hover:bg-surface-raised border border-white/[0.04] text-text-primary text-xs font-semibold px-5 py-2.5 rounded-xl transition-all cursor-pointer"
+              className="btn-secondary text-xs px-5 py-2 rounded-xl font-semibold"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleSave}
-              className="bg-cool hover:bg-cool/90 text-white text-xs font-bold px-6 py-2.5 rounded-xl transition-all shadow-md cursor-pointer"
+              className="btn-primary text-xs px-6 py-2 rounded-xl font-bold"
             >
-              {jobToEdit ? 'Save Changes' : 'Create Card'}
+              {jobToEdit ? 'Save Changes' : 'Create Application'}
             </button>
           </div>
         </div>
@@ -642,3 +656,4 @@ export const JobModal: React.FC<JobModalProps> = ({ isOpen, onClose, jobToEdit }
     document.body
   );
 };
+

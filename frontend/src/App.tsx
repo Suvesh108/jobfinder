@@ -1,8 +1,11 @@
 import { useEffect } from 'react';
-import { Sidebar, MobileTopBar } from './components/Sidebar';
+import { Sidebar } from './components/Sidebar';
+import { MobileHeader, MobileBottomNav } from './components/MobileNavigation';
 import { TrackerView } from './components/TrackerView';
 import { SearchView } from './components/SearchView';
 import { SettingsView } from './components/SettingsView';
+import { ProfileView } from './components/ProfileView';
+import { AIChatCopilot } from './components/AIChatCopilot';
 import { useUIStore, applyThemeToDocument } from './store/useUIStore';
 
 export default function App() {
@@ -33,29 +36,39 @@ export default function App() {
       <div className="app-main">
 
         {/* ── Mobile Top Bar (≤768px) ── */}
-        <MobileTopBar />
+        <MobileHeader />
 
         {/* ── Page Views ── */}
         <div
-          className="page-container animate-fade-in"
+          className="page-container animate-scale-up"
           style={{ display: activeTab === 'search' ? 'flex' : 'none' }}
         >
           <SearchView />
         </div>
         <div
-          className="page-container animate-fade-in"
+          className="page-container animate-scale-up"
           style={{ display: activeTab === 'tracker' ? 'flex' : 'none' }}
         >
           <TrackerView />
         </div>
         <div
-          className="page-container animate-fade-in"
+          className="page-container animate-scale-up"
+          style={{ display: activeTab === 'profile' ? 'flex' : 'none' }}
+        >
+          <ProfileView />
+        </div>
+        <div
+          className="page-container animate-scale-up"
           style={{ display: activeTab === 'settings' ? 'flex' : 'none' }}
         >
           <SettingsView />
         </div>
 
       </div>
+
+      {/* ── Floating AI Resume Copilot (Bottom Left) ── */}
+      <AIChatCopilot />
+      <MobileBottomNav />
     </div>
   );
 }
