@@ -1,4 +1,5 @@
 @echo off
-echo Starting JobFinder Unified Backend Services (Ports 8000 and 8002)...
-node dev.js
+echo Starting JobFinder JobSpy Backend Service on Port 8000...
+cd scraper-service-py
+python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 pause

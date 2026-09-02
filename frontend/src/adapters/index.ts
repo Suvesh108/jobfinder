@@ -5,11 +5,6 @@ import {
   glassdoorAdapter, 
   zipRecruiterAdapter 
 } from './naukriIndeedAdapter';
-import {
-  greenhouseAdapter,
-  leverAdapter,
-  ashbyAdapter
-} from './atsAdapter';
 import type { JobAdapter } from './types';
 
 export const adapters: JobAdapter[] = [
@@ -18,9 +13,6 @@ export const adapters: JobAdapter[] = [
   linkedinAdapter,
   glassdoorAdapter,
   zipRecruiterAdapter,
-  greenhouseAdapter,
-  leverAdapter,
-  ashbyAdapter,
 ];
 
 export * from './types';

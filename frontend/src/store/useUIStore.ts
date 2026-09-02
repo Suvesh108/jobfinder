@@ -82,7 +82,7 @@ export const useUIStore = create<UIStore>()(
       defaultReminderDays: 14,
       setDefaultReminderDays: (days) => set({ defaultReminderDays: days }),
       
-      enabledAdapters: ['naukri', 'indeed', 'linkedin', 'glassdoor', 'zip_recruiter', 'ats_greenhouse', 'ats_lever', 'ats_ashby'],
+      enabledAdapters: ['naukri', 'indeed', 'linkedin', 'glassdoor', 'zip_recruiter'],
       toggleAdapter: (id) => 
         set((state) => {
           const enabled = state.enabledAdapters.includes(id)
