@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/schema';
 import { useUIStore } from '../store/useUIStore';
 import { adapters, type JobListing } from '../adapters';
+import { classifyExperience } from '../utils/experienceClassifier';
 import { dedupeJobs } from '../utils/dedupeJobs';
 import { 
   Search, 
@@ -222,17 +223,19 @@ interface FilterOption {
 
 const DATE_OPTIONS: FilterOption[] = [
   { value: 'all', label: 'All Dates' },
-  { value: '24h', label: 'Past 24 Hours' },
+  { value: '24h', label: '🟢 Past 24 Hours' },
   { value: '3d', label: 'Past 3 Days' },
-  { value: '7d', label: 'Past 7 Days' },
+  { value: '7d', label: 'Past 7 Days (1 Week)' },
+  { value: '14d', label: 'Past 14 Days' },
+  { value: '30d', label: 'Past 30 Days' },
 ];
 
 const EXPERIENCE_OPTIONS: FilterOption[] = [
   { value: 'all', label: 'All Experience' },
-  { value: 'fresher', label: 'Fresher (0-1 yrs)' },
-  { value: '2', label: 'Junior (1-3 yrs)' },
-  { value: '4', label: 'Mid-Level (3-5 yrs)' },
-  { value: '6', label: 'Senior (5+ yrs)' },
+  { value: 'fresher', label: '🌱 Fresher (0-1 yrs)' },
+  { value: 'junior', label: '⚡ Junior (1-3 yrs)' },
+  { value: 'mid', label: '💼 Mid-Level (3-5 yrs)' },
+  { value: 'senior', label: '👑 Senior (5+ yrs)' },
 ];
 
 const WORK_MODE_OPTIONS: FilterOption[] = [
@@ -580,6 +583,10 @@ export const SearchView: React.FC = () => {
       setPostedAfter(new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
     } else if (option === '7d') {
       setPostedAfter(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+    } else if (option === '14d') {
+      setPostedAfter(new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+    } else if (option === '30d') {
+      setPostedAfter(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
     } else {
       setPostedAfter('');
     }
@@ -675,25 +682,23 @@ export const SearchView: React.FC = () => {
       sortedResults = sortedResults.filter(job => new Date(job.postedDate).getTime() >= cutoff);
     }
 
-    // Experience filter
+    // Experience filter (Hyper-Accurate classification)
     if (currentExperience !== 'all') {
       sortedResults = sortedResults.filter(job => {
-        const text = `${job.title} ${job.description}`.toLowerCase();
-        const expMatch = text.match(/(\d+)\s*(?:-|to)?\s*(\d+)?\s*(?:years?|yrs?)/i);
-        let minRequired: number | null = null;
-        if (expMatch) minRequired = parseInt(expMatch[1], 10);
-
+        const classified = classifyExperience(job);
         if (currentExperience === 'fresher') {
-          const fresherKeywords = /\b(fresher|fresh\s*graduate|entry[\s-]?level|no\s*experience|0[\s-]?(?:years?|exp)|trainee)\b/i;
-          if (fresherKeywords.test(text)) return true;
-          if (minRequired === null) return true;
-          if (minRequired >= 1) return false;
-          return true;
+          return classified.level === 'fresher' || classified.minYears === 0;
         }
-
-        const targetYears = parseInt(currentExperience, 10);
-        if (minRequired === null) return true;
-        return minRequired <= targetYears + 1;
+        if (currentExperience === 'junior' || currentExperience === '2') {
+          return classified.level === 'junior' || (classified.minYears <= 2 && classified.level !== 'senior');
+        }
+        if (currentExperience === 'mid' || currentExperience === '4') {
+          return classified.level === 'mid' || (classified.minYears >= 2 && classified.minYears <= 5);
+        }
+        if (currentExperience === 'senior' || currentExperience === '6') {
+          return classified.level === 'senior' || classified.minYears >= 5;
+        }
+        return true;
       });
     }
 

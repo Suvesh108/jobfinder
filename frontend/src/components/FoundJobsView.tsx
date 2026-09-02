@@ -6,6 +6,7 @@ import { useDiscoveredJobsStore } from '../store/useDiscoveredJobsStore';
 import { type JobListing } from '../adapters';
 import { AITailorModal } from './AITailorModal';
 import { verifyJobUrlsBatch, getCachedLiveness, type VerificationStatus } from '../utils/livenessService';
+import { classifyExperience } from '../utils/experienceClassifier';
 import { 
   Search, 
   MapPin, 
@@ -248,7 +249,7 @@ export const FoundJobsView: React.FC = () => {
               ))}
             </select>
 
-            {/* Fresher Filter Toggle */}
+            {/* Experience Filter Toggle */}
             <button
               type="button"
               onClick={() => { setFresherOnly(!fresherOnly); setCurrentPage(1); }}
@@ -259,7 +260,7 @@ export const FoundJobsView: React.FC = () => {
               }`}
               style={{ background: fresherOnly ? undefined : 'var(--bg-surface-raised)', borderColor: fresherOnly ? undefined : 'var(--border-subtle)' }}
             >
-              <span>🌱 Freshers Only</span>
+              <span>🌱 Freshers (0-1 Yrs)</span>
             </button>
 
             {/* Verified Active Only Filter Toggle */}
@@ -354,11 +355,17 @@ export const FoundJobsView: React.FC = () => {
                           {job.source}
                         </span>
 
-                        {isFresherFriendly(job) && (
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
-                            🌱 Fresher (0-1 Yrs)
-                          </span>
-                        )}
+                        {(() => {
+                          const exp = classifyExperience(job);
+                          return (
+                            <span
+                              className="text-[10px] font-bold px-1.5 py-0.5 rounded-md border shrink-0"
+                              style={{ background: exp.badgeBg, color: exp.badgeText, borderColor: exp.badgeBorder }}
+                            >
+                              {exp.label}
+                            </span>
+                          );
+                        })()}
 
                         {liveness?.isATS ? (
                           <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded-md bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 shrink-0 flex items-center space-x-0.5">
