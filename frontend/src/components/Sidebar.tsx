@@ -1,3 +1,5 @@
+import { useDiscoveredJobsStore } from '../store/useDiscoveredJobsStore';
+import { Layers } from 'lucide-react';
 import React from 'react';
 import { useUIStore, type AppTheme } from '../store/useUIStore';
 import { Logo } from './Logo';
@@ -47,9 +49,9 @@ export const TopNavbar: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Center: Main Navigation Tabs (Search Hub & Tracker) ── */}
+      {/* ── Center: Main Navigation Tabs (Search, Found Jobs, Tracker, Profile) ── */}
       <nav className="absolute left-1/2 -translate-x-1/2 flex items-center space-x-1.5">
-        {/* 1. Search Hub */}
+        {/* 1. Search Job */}
         <button
           type="button"
           onClick={() => setActiveTab('search')}
@@ -68,7 +70,29 @@ export const TopNavbar: React.FC = () => {
           <span>Search Job</span>
         </button>
 
-        {/* 2. Tracker */}
+        {/* 2. Found Jobs (with Discovered Count Badge) */}
+        <button
+          type="button"
+          onClick={() => setActiveTab('found_jobs')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer ${
+            activeTab === 'found_jobs'
+              ? 'font-bold shadow-xs' 
+              : 'text-text-muted hover:text-text-primary hover:bg-surface-raised/50'
+          }`}
+          style={{
+            background: activeTab === 'found_jobs' ? 'var(--sidebar-item-active)' : 'transparent',
+            color: activeTab === 'found_jobs' ? 'var(--accent-primary)' : 'var(--text-muted)',
+            border: activeTab === 'found_jobs' ? '1px solid var(--border-highlight)' : '1px solid transparent'
+          }}
+        >
+          <Layers size={14} className={activeTab === 'found_jobs' ? 'text-primary' : ''} />
+          <span>Found Jobs</span>
+          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-cyan-500/20 text-cyan-300">
+            {useDiscoveredJobsStore.getState().foundJobs.length}
+          </span>
+        </button>
+
+        {/* 3. Tracker */}
         <button
           type="button"
           onClick={() => setActiveTab('tracker')}

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type AppTab = 'tracker' | 'search' | 'profile' | 'settings';
+export type AppTab = 'search' | 'found_jobs' | 'tracker' | 'profile' | 'settings';
 export type AppTheme = 'dark' | 'light' | 'system';
 
 export interface TrackerFilters {

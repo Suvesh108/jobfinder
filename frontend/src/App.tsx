@@ -3,6 +3,7 @@ import { Sidebar } from './components/Sidebar';
 import { MobileHeader, MobileBottomNav } from './components/MobileNavigation';
 import { TrackerView } from './components/TrackerView';
 import { SearchView } from './components/SearchView';
+import { FoundJobsView } from './components/FoundJobsView';
 import { SettingsView } from './components/SettingsView';
 import { ProfileView } from './components/ProfileView';
 import { AIChatCopilot } from './components/AIChatCopilot';
@@ -44,6 +45,12 @@ export default function App() {
           style={{ display: activeTab === 'search' ? 'flex' : 'none' }}
         >
           <SearchView />
+        </div>
+        <div
+          className="page-container animate-scale-up"
+          style={{ display: activeTab === 'found_jobs' ? 'flex' : 'none' }}
+        >
+          <FoundJobsView />
         </div>
         <div
           className="page-container animate-scale-up"

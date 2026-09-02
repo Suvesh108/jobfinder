@@ -1,3 +1,4 @@
+import { useDiscoveredJobsStore } from '../store/useDiscoveredJobsStore';
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type JobApplication, type JobStatus } from '../db/schema';
@@ -850,6 +851,7 @@ export const SearchView: React.FC = () => {
         completedTasks++;
         const pct = Math.min(99, Math.round((completedTasks / totalTasks) * 100));
         setSearchProgress(pct);
+        useDiscoveredJobsStore.getState().setSearchProgress(pct);
 
         if (fetched.length > 0 && !isAbortedRef.current && !controller.signal.aborted) {
           adapterTotal += fetched.length;
@@ -903,6 +905,10 @@ export const SearchView: React.FC = () => {
           setSearchProgress(100);
           setIsLoading(false);
           setLoadingPhase('Search completed successfully.');
+          const finalDeduped = dedupeJobs(rawListingsRef.current);
+          useDiscoveredJobsStore.getState().setFoundJobs(finalDeduped);
+          useDiscoveredJobsStore.getState().setLastSearch(selectedRoles.join(', '), locQuery);
+          useDiscoveredJobsStore.getState().setIsSearching(false);
         }
       }
     });

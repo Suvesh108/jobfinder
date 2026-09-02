@@ -1,5 +1,7 @@
 import React from 'react';
 import { useUIStore } from '../store/useUIStore';
+import { useDiscoveredJobsStore } from '../store/useDiscoveredJobsStore';
+import { Layers } from 'lucide-react';
 import { Logo } from './Logo';
 import {
   Search,
@@ -17,6 +19,7 @@ export const MobileHeader: React.FC = () => {
   const getTabTitle = () => {
     switch (activeTab) {
       case 'search': return 'Search Jobs';
+      case 'found_jobs': return 'Found Jobs';
       case 'tracker': return 'Application Tracker';
       case 'profile': return 'Candidate Profile';
       case 'settings': return 'Settings & AI';
@@ -81,11 +84,14 @@ export const MobileHeader: React.FC = () => {
 export const MobileBottomNav: React.FC = () => {
   const { activeTab, setActiveTab } = useUIStore();
 
+  const foundCount = useDiscoveredJobsStore((state) => state.foundJobs.length);
+
   const navItems = [
-    { id: 'search', label: 'Search', icon: Search },
-    { id: 'tracker', label: 'Tracker', icon: KanbanSquare },
-    { id: 'profile', label: 'Profile', icon: User },
-    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'search', label: 'Search', icon: Search, badge: null },
+    { id: 'found_jobs', label: 'Found', icon: Layers, badge: foundCount > 0 ? foundCount : null },
+    { id: 'tracker', label: 'Tracker', icon: KanbanSquare, badge: null },
+    { id: 'profile', label: 'Profile', icon: User, badge: null },
+    { id: 'settings', label: 'Settings', icon: Settings, badge: null },
   ] as const;
 
   return (
@@ -119,8 +125,13 @@ export const MobileBottomNav: React.FC = () => {
               />
             )}
 
-            <div className={`p-1 rounded-lg transition-transform ${isActive ? 'scale-110' : ''}`}>
-              <Icon size={18} />
+            <div className={`p-1 rounded-lg transition-transform relative ${isActive ? 'scale-110' : ''}`}>
+              <Icon size={17} />
+              {item.badge && (
+                <span className="absolute -top-1 -right-2 px-1 py-0.2 rounded-full text-[8px] font-black bg-cyan-500 text-black leading-none animate-scale-up">
+                  {item.badge}
+                </span>
+              )}
             </div>
             
             <span className="text-[10px] tracking-tight">{item.label}</span>
