@@ -37,7 +37,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 
-const CURRENT_VERSION = 'v1.1.5';
+const CURRENT_VERSION = 'v1.1.6';
 
 export const SettingsView: React.FC = () => {
   const { 
@@ -56,6 +56,7 @@ export const SettingsView: React.FC = () => {
 
   // AI Configuration State
   const [aiProvider, setAiProvider] = useState<AIProviderId>('gemini');
+  const [expandedProvider, setExpandedProvider] = useState<AIProviderId | null>('gemini');
   const [aiApiKey, setAiApiKey] = useState('');
   const [aiBaseUrl, setAiBaseUrl] = useState('');
   const [aiModel, setAiModel] = useState('');
@@ -91,6 +92,7 @@ export const SettingsView: React.FC = () => {
     getUserProfile().then((p: UserProfile) => {
       const prov = (p.aiProvider as AIProviderId) || 'gemini';
       setAiProvider(prov);
+      setExpandedProvider(prov);
       setAiApiKey(p.aiApiKey || '');
       setAiBaseUrl(p.aiBaseUrl || '');
       setAiModel(p.aiModel || '');
@@ -141,10 +143,14 @@ export const SettingsView: React.FC = () => {
   };
 
   const handleProviderToggle = (prov: AIProviderId) => {
-    if (aiProvider === prov) {
-      // already open
+    if (expandedProvider === prov) {
+      // Collapse when clicked again
+      setExpandedProvider(null);
       return;
     }
+    
+    // Expand and set active provider
+    setExpandedProvider(prov);
     setAiProvider(prov);
     const cfg = AI_PROVIDERS.find(p => p.id === prov);
     if (cfg) {
@@ -398,7 +404,7 @@ export const SettingsView: React.FC = () => {
               {/* Accordion Provider Cards List */}
               <div className="space-y-3">
                 {AI_PROVIDERS.map((prov) => {
-                  const isExpanded = aiProvider === prov.id;
+                  const isExpanded = expandedProvider === prov.id;
                   
                   return (
                     <div

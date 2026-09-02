@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useUIStore } from '../store/useUIStore';
 import { useDiscoveredJobsStore } from '../store/useDiscoveredJobsStore';
+import { CURRENT_APP_VERSION } from '../utils/updaterService';
 import { Search, CheckCircle2, ArrowRight, X, Bell } from 'lucide-react';
 
 export const NotificationBanner: React.FC = () => {
@@ -24,16 +25,29 @@ export const NotificationBanner: React.FC = () => {
     }
   }, [isSearching, searchProgress, foundJobs.length]);
 
-  // Check for app update in background once on load
+  // Check for app update in background once on load (strict semver check)
   useEffect(() => {
     fetch('https://api.github.com/repos/Suvesh108/jobfinder/releases/latest')
       .then(res => res.ok ? res.json() : null)
       .then(data => {
-        if (data && data.tag_name && data.tag_name.toLowerCase() !== 'v1.1.4' && data.tag_name.toLowerCase() !== 'v1.1.3') {
-          setAppUpdateNotification({
-            tag: data.tag_name,
-            url: data.html_url || 'https://github.com/Suvesh108/jobfinder/releases'
-          });
+        if (data && data.tag_name) {
+          const remoteTag = data.tag_name.trim().toLowerCase().replace(/^v/, '');
+          const currentTag = CURRENT_APP_VERSION.trim().toLowerCase().replace(/^v/, '');
+
+          const [rMaj = 0, rMin = 0, rPatch = 0] = remoteTag.split('.').map(Number);
+          const [cMaj = 0, cMin = 0, cPatch = 0] = currentTag.split('.').map(Number);
+
+          const isNewer = 
+            rMaj > cMaj || 
+            (rMaj === cMaj && rMin > cMin) || 
+            (rMaj === cMaj && rMin === cMin && rPatch > cPatch);
+
+          if (isNewer) {
+            setAppUpdateNotification({
+              tag: data.tag_name,
+              url: data.html_url || 'https://github.com/Suvesh108/jobfinder/releases'
+            });
+          }
         }
       })
       .catch(() => {});
