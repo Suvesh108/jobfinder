@@ -13,7 +13,8 @@ import {
   ExternalLink, 
   Clock, 
   ChevronDown, 
-  Square
+  Square,
+  RotateCw
 } from 'lucide-react';
 
 // ─── All Indian States, UTs & Major Cities ───────────────────────────────────
@@ -570,10 +571,13 @@ export const SearchView: React.FC = () => {
   const [jobMode, setJobMode] = useState<'tech' | 'nontech'>('tech');
   
   // Navigation & Progress States
+  const foundJobs = useDiscoveredJobsStore(s => s.foundJobs);
   const [searchProgress, setSearchProgress] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [results, setResults] = useState<JobListing[]>([]);
+
+  const isRescan = hasSearched || foundJobs.length > 0;
 
   const handleDateOptionChange = (option: string) => {
     setDateOption(option);
@@ -788,9 +792,12 @@ export const SearchView: React.FC = () => {
     // Keep unified view // Redirect to dedicated results page
     setLoadingPhase(`Scanning across ${activeAdapters.length} active platforms...`);
 
-    // Check cache
+    // Check cache (Bypass if rescanning)
+    if (isRescan) {
+      searchCacheRef.current.clear();
+    }
     const cacheKey = `${jobMode}:${selectedRoles.sort().join(',')}:${locQuery}:${postedAfter}`;
-    const cachedJobs = searchCacheRef.current.get(cacheKey);
+    const cachedJobs = !isRescan ? searchCacheRef.current.get(cacheKey) : null;
 
     if (cachedJobs && cachedJobs.length > 0) {
       rawListingsRef.current = cachedJobs;
@@ -993,10 +1000,20 @@ export const SearchView: React.FC = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="btn-primary px-6 py-2.5 text-xs font-bold flex items-center justify-center space-x-2 shrink-0 h-[42px] cursor-pointer shadow-lg"
+                className={`px-6 py-2.5 text-xs font-bold flex items-center justify-center space-x-2 shrink-0 h-[42px] cursor-pointer shadow-lg transition-all ${
+                  isRescan
+                    ? 'btn-primary bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500'
+                    : 'btn-primary'
+                }`}
               >
-                <Search className="h-4 w-4" />
-                <span>{isLoading ? 'Scanning...' : 'Search Jobs'}</span>
+                {isLoading ? (
+                  <RotateCw className="h-4 w-4 animate-spin" />
+                ) : isRescan ? (
+                  <RotateCw className="h-4 w-4" />
+                ) : (
+                  <Search className="h-4 w-4" />
+                )}
+                <span>{isLoading ? 'Scanning...' : isRescan ? 'Rescan Jobs' : 'Search Jobs'}</span>
               </button>
             </div>
 
