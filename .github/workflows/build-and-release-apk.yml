@@ -69,17 +69,21 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          name: Release ${{ github.ref_name }}
+          name: JobFinder ${{ github.ref_name }}
           body: |
             * **Android APK (Direct Install)**: `JobFinder-${{ github.ref_name }}.apk`
+            * **Universal Android APK**: `jobfinder.apk`
+            * **Desktop / Web Application**: `index.html` (PWA Offline Ready)
 
-            ### ✨ Features
-            * **Native Mobile Layout**: Built specifically for Android touch displays with zero viewport clipping.
-            * **Unified Job Search Engine**: Concurrently queries top job boards with real-time progress indicators.
-            * **AI Chat Copilot**: Interactive drag-and-drop resume tailoring using Gemini, OpenRouter, Groq, and DeepSeek.
-            * **Jake's ATS Resume Generator**: Real-time ATS single-column resume with interactive in-browser LaTeX (`.tex`) code editor.
-            * **Application Tracker**: Pipeline management with follow-up reminders, Notion database sync, and CSV export.
-            * **Full Offline Persistence**: Powered by Dexie.js (IndexedDB) with backup export & import.
+            ### ✨ Features & Improvements in ${{ github.ref_name }}
+
+            * 📱 **Dedicated Native Mobile UX**: Built specifically for Android touch displays with centered header, bottom glassmorphic navigation dock, and zero-overflow layout.
+            * 🔍 **Unified Luxury Job Search Engine**: Parallel aggregator across LinkedIn, Naukri, Indeed, Glassdoor, and ZipRecruiter with real-time scan progress bars.
+            * 🤖 **Intelligent AI Chat Copilot**: Drag-and-drop resume tailoring with multi-provider AI support (Google Gemini, OpenRouter, NVIDIA NIM, Groq, DeepSeek).
+            * 📄 **Jake's ATS Resume Generator**: Real-time ATS single-column resume with interactive in-browser LaTeX (`.tex`) code editor and instant PDF export.
+            * 📋 **Application Pipeline Tracker**: Kanban and list views with follow-up notifications, Notion database synchronization, and CSV export.
+            * 🛡️ **Defensive Security Hardening**: OWASP Top 10 compliance with LaTeX syntax injection escaping, strict schema sanitization, and reverse tabnabbing protection.
+            * 💾 **Full Offline Persistence**: Zero-cloud-dependency local database powered by Dexie.js (IndexedDB) with backup export & import.
           draft: false
           prerelease: false
           files: |
