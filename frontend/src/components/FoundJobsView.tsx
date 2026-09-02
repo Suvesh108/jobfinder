@@ -22,6 +22,24 @@ import {
 
 const PAGE_SIZE = 12;
 
+const formatRelativeDate = (dateStr?: string): { text: string; isToday: boolean } => {
+  if (!dateStr) return { text: 'Recent', isToday: false };
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays <= 0) return { text: 'Today', isToday: true };
+  if (diffDays === 1) return { text: 'Yesterday', isToday: false };
+  if (diffDays < 7) return { text: `${diffDays}d ago`, isToday: false };
+  return { text: dateStr, isToday: false };
+};
+
+const isFresherFriendly = (job: JobListing): boolean => {
+  const text = `${job.title} ${job.description || ''}`.toLowerCase();
+  return text.includes('fresher') || text.includes('entry level') || text.includes('graduate') || text.includes('0-1') || text.includes('intern');
+};
+
+
 export const FoundJobsView: React.FC = () => {
   const { setActiveTab } = useUIStore();
   const foundJobs = useDiscoveredJobsStore(state => state.foundJobs);
@@ -266,17 +284,29 @@ export const FoundJobsView: React.FC = () => {
                 style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}
               >
                 <div className="space-y-2.5">
-                  {/* Top: Source Badge & Timestamp */}
-                  <div className="flex items-center justify-between gap-2">
-                    <span
-                      className="text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0"
-                      style={{ background: badgeStyle.bg, color: badgeStyle.text, borderColor: badgeStyle.border }}
-                    >
-                      {job.source}
-                    </span>
-                    <span className="text-[10px] text-text-muted truncate">
-                      {job.postedDate || 'Recent'}
-                    </span>
+                  {/* Top: Source Badge, Fresher Tag & Relative Timestamp */}
+                  <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                    <div className="flex items-center space-x-1.5">
+                      <span
+                        className="text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0"
+                        style={{ background: badgeStyle.bg, color: badgeStyle.text, borderColor: badgeStyle.border }}
+                      >
+                        {job.source}
+                      </span>
+                      {isFresherFriendly(job) && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
+                          🌱 Fresher (0-1 Yrs)
+                        </span>
+                      )}
+                    </div>
+                    {(() => {
+                      const rel = formatRelativeDate(job.postedDate);
+                      return (
+                        <span className={`text-[10px] font-semibold truncate ${rel.isToday ? 'text-emerald-400' : 'text-text-muted'}`}>
+                          {rel.isToday ? '🟢 Today' : rel.text}
+                        </span>
+                      );
+                    })()}
                   </div>
 
                   {/* Title & Company */}

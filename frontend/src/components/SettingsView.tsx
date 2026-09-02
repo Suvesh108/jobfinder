@@ -1,4 +1,4 @@
-import { fetchLatestRelease } from '../utils/updaterService';
+import { fetchLatestRelease, fetchJobSpyVersion, downloadApkInternally, type ReleaseInfo } from '../utils/updaterService';
 import React, { useState, useEffect } from 'react';
 import { db, getUserProfile, saveUserProfile, type JobApplication, type UserProfile } from '../db/schema';
 import { useUIStore, type AppTheme } from '../store/useUIStore';
@@ -37,7 +37,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 
-const CURRENT_VERSION = 'v1.1.4';
+const CURRENT_VERSION = 'v1.1.5';
 
 export const SettingsView: React.FC = () => {
   const { 
@@ -71,7 +71,20 @@ export const SettingsView: React.FC = () => {
 
   // About & Update State
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [latestReleaseInfo, setLatestReleaseInfo] = useState<ReleaseInfo | null>(null);
   const [updateStatus, setUpdateStatus] = useState<{ checked: boolean; isLatest: boolean; latestTag?: string; releaseUrl?: string; error?: string } | null>(null);
+  
+  // In-App Download Progress State (No External Redirects)
+  const [isDownloadingInternally, setIsDownloadingInternally] = useState(false);
+  const [downloadPct, setDownloadPct] = useState(0);
+  const [downloadMb, setDownloadMb] = useState('');
+  const [downloadDone, setDownloadDone] = useState(false);
+  const [installedBlob, setInstalledBlob] = useState<string | null>(null);
+
+  // JobSpy Engine Updater State
+  const [jobspyInfo, setJobspyInfo] = useState<{ installed: string; latest: string; isLatest: boolean } | null>(null);
+  const [isCheckingJobspy, setIsCheckingJobspy] = useState(false);
+  const [jobspyUpdateSuccess, setJobspyUpdateSuccess] = useState(false);
 
   useEffect(() => {
     // Load AI Config
@@ -157,8 +170,10 @@ export const SettingsView: React.FC = () => {
   const handleCheckForUpdates = async () => {
     setIsCheckingUpdate(true);
     setUpdateStatus(null);
+    setDownloadDone(false);
     try {
       const info = await fetchLatestRelease();
+      setLatestReleaseInfo(info);
       if (info) {
         const isLatest = info.tag.toLowerCase() === CURRENT_VERSION.toLowerCase();
         setUpdateStatus({
@@ -177,6 +192,41 @@ export const SettingsView: React.FC = () => {
       });
     } finally {
       setIsCheckingUpdate(false);
+    }
+  };
+
+  const handleStartInternalDownload = async () => {
+    setIsDownloadingInternally(true);
+    setDownloadPct(0);
+    setDownloadDone(false);
+
+    const url = latestReleaseInfo?.apkDownloadUrl || `https://github.com/Suvesh108/jobfinder/releases/download/${CURRENT_VERSION}/JobFinder-${CURRENT_VERSION}.apk`;
+    const fileName = latestReleaseInfo?.apkFileName || `JobFinder-${CURRENT_VERSION}.apk`;
+
+    const res = await downloadApkInternally(url, fileName, (pct, loaded, total) => {
+      setDownloadPct(pct);
+      setDownloadMb(`${loaded}MB / ${total}MB`);
+    });
+
+    setIsDownloadingInternally(false);
+    if (res.success) {
+      setDownloadDone(true);
+      if (res.blobUrl) setInstalledBlob(res.blobUrl);
+    }
+  };
+
+  const handleCheckJobSpy = async () => {
+    setIsCheckingJobspy(true);
+    setJobspyUpdateSuccess(false);
+    try {
+      const info = await fetchJobSpyVersion();
+      setJobspyInfo(info);
+      setJobspyUpdateSuccess(true);
+      setTimeout(() => setJobspyUpdateSuccess(false), 3000);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsCheckingJobspy(false);
     }
   };
 
@@ -781,21 +831,21 @@ export const SettingsView: React.FC = () => {
           )}
 
           {/* ══════════════════════════════════════════════════════════════
-              TAB 5: ABOUT & APP UPDATES
+              TAB 5: ABOUT, IN-APP OTA UPDATES & JOBSPY ENGINE UPDATER
               ══════════════════════════════════════════════════════════════ */}
           {activeSubTab === 'about' && (
             <div className="space-y-6 animate-fade-in">
               <div>
                 <h3 className="text-sm font-bold text-text-primary font-display flex items-center space-x-2">
                   <Info className="h-4 w-4 text-sky-400" />
-                  <span>About JobFinder &amp; Updates</span>
+                  <span>About JobFinder, App OTA &amp; Scraper Updates</span>
                 </h3>
                 <p className="text-[11px] text-text-muted mt-0.5">
-                  View installed version information and check for new releases directly from GitHub.
+                  Update JobFinder internally within the app and check for the latest JobSpy scraping engine definitions.
                 </p>
               </div>
 
-              {/* Version & Info Card */}
+              {/* 1. JobFinder App Version & In-App OTA Update Card */}
               <div className="card p-5 rounded-2xl border space-y-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-center space-x-3">
@@ -816,7 +866,7 @@ export const SettingsView: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleCheckForUpdates}
-                    disabled={isCheckingUpdate}
+                    disabled={isCheckingUpdate || isDownloadingInternally}
                     className="btn-primary text-xs px-4 py-2 font-bold flex items-center justify-center space-x-1.5 cursor-pointer shadow-md hover:scale-105 transition-all shrink-0"
                   >
                     <RefreshCw size={13} className={isCheckingUpdate ? 'animate-spin' : ''} />
@@ -824,8 +874,54 @@ export const SettingsView: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Update Result Alert */}
-                {updateStatus && (
+                {/* In-App Internal Download Progress */}
+                {isDownloadingInternally && (
+                  <div className="p-4 rounded-2xl border space-y-2.5 animate-fade-in" style={{ background: 'rgba(6, 182, 212, 0.12)', borderColor: 'rgba(6, 182, 212, 0.35)' }}>
+                    <div className="flex items-center justify-between text-xs font-bold text-cyan-400">
+                      <span className="flex items-center space-x-2">
+                        <Download size={14} className="animate-bounce" />
+                        <span>Downloading Update Internally in App (No External Redirect)...</span>
+                      </span>
+                      <span>{downloadPct}% {downloadMb && `(${downloadMb})`}</span>
+                    </div>
+                    <div className="w-full h-2 rounded-full overflow-hidden bg-slate-800">
+                      <div className="h-full bg-gradient-to-r from-cyan-400 to-indigo-500 transition-all duration-200" style={{ width: `${downloadPct}%` }} />
+                    </div>
+                  </div>
+                )}
+
+                {/* Download Done Alert */}
+                {downloadDone && (
+                  <div className="p-4 rounded-2xl border space-y-2 animate-fade-in" style={{ background: 'rgba(16, 185, 129, 0.15)', borderColor: 'rgba(16, 185, 129, 0.35)' }}>
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center space-x-2 text-emerald-400 font-bold text-xs">
+                        <CheckCircle2 size={16} />
+                        <span>Update Downloaded Internally! Package Installer Triggered.</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (installedBlob) {
+                            const a = document.createElement('a');
+                            a.href = installedBlob;
+                            a.download = latestReleaseInfo?.apkFileName || `JobFinder-${CURRENT_VERSION}.apk`;
+                            document.body.appendChild(a);
+                            a.click();
+                            setTimeout(() => a.remove(), 1000);
+                          } else {
+                            handleStartInternalDownload();
+                          }
+                        }}
+                        className="btn-primary text-xs px-3.5 py-1.5 font-bold cursor-pointer"
+                      >
+                        <span>Reopen Installer</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Update Available / Up-to-date banner */}
+                {updateStatus && !isDownloadingInternally && !downloadDone && (
                   <div 
                     className="p-3.5 rounded-xl border text-xs font-semibold flex items-center justify-between gap-3 animate-fade-in"
                     style={{
@@ -839,34 +935,32 @@ export const SettingsView: React.FC = () => {
                       <span>
                         {updateStatus.isLatest 
                           ? `JobFinder ${CURRENT_VERSION} is up to date.`
-                          : `New update available! (${updateStatus.latestTag})`}
+                          : `New version available! (${updateStatus.latestTag})`}
                       </span>
                     </div>
 
                     {!updateStatus.isLatest && (
-                      <a
-                        href={updateStatus.releaseUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-3 py-1 rounded-lg border text-xs font-bold flex items-center space-x-1 shrink-0 bg-surface hover:scale-105 transition-transform cursor-pointer"
-                        style={{ borderColor: 'var(--border-subtle)' }}
+                      <button
+                        type="button"
+                        onClick={handleStartInternalDownload}
+                        className="btn-primary text-xs px-3.5 py-1.5 font-bold flex items-center space-x-1 shrink-0 cursor-pointer shadow-md hover:scale-105 transition-all"
                       >
-                        <span>View Release</span>
-                        <ExternalLink size={11} />
-                      </a>
+                        <Download size={12} />
+                        <span>Download &amp; Install Update</span>
+                      </button>
                     )}
                   </div>
                 )}
 
-                {/* Architecture Highlights */}
+                {/* Architecture Chips */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
                   <div className="p-2.5 rounded-xl bg-surface-raised border" style={{ borderColor: 'var(--border-subtle)' }}>
                     <span className="text-[9px] text-text-muted uppercase font-bold block">Frontend</span>
                     <span className="text-xs font-bold text-text-primary">React 19 + Vite</span>
                   </div>
                   <div className="p-2.5 rounded-xl bg-surface-raised border" style={{ borderColor: 'var(--border-subtle)' }}>
-                    <span className="text-[9px] text-text-muted uppercase font-bold block">Engine</span>
-                    <span className="text-xs font-bold text-text-primary">Multi-Scraper</span>
+                    <span className="text-[9px] text-text-muted uppercase font-bold block">Scraper</span>
+                    <span className="text-xs font-bold text-text-primary">Python JobSpy</span>
                   </div>
                   <div className="p-2.5 rounded-xl bg-surface-raised border" style={{ borderColor: 'var(--border-subtle)' }}>
                     <span className="text-[9px] text-text-muted uppercase font-bold block">Database</span>
@@ -879,7 +973,46 @@ export const SettingsView: React.FC = () => {
                 </div>
               </div>
 
-              {/* GitHub & Open Source Links */}
+              {/* 2. JobSpy Scraper Engine & Definitions Updater Card */}
+              <div className="card p-5 rounded-2xl border space-y-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="h-11 w-11 rounded-2xl flex items-center justify-center font-black text-lg text-white shadow-md select-none shrink-0" style={{ background: 'linear-gradient(135deg, #10B981 0%, #06B6D4 100%)' }}>
+                      🐍
+                    </div>
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <h4 className="text-sm font-bold text-text-primary font-display">JobSpy Scraping Engine</h4>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          {jobspyInfo?.installed || 'python-jobspy v1.1.75'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-text-muted mt-0.5">
+                        Multi-portal crawler powering LinkedIn, Naukri, Indeed, Glassdoor &amp; ZipRecruiter searches.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleCheckJobSpy}
+                    disabled={isCheckingJobspy}
+                    className="btn-secondary text-xs px-4 py-2 font-bold flex items-center justify-center space-x-1.5 cursor-pointer hover:scale-105 transition-all shrink-0"
+                  >
+                    <RefreshCw size={13} className={isCheckingJobspy ? 'animate-spin' : ''} />
+                    <span>{isCheckingJobspy ? 'Checking PyPI...' : 'Check & Update JobSpy'}</span>
+                  </button>
+                </div>
+
+                {jobspyUpdateSuccess && (
+                  <div className="p-3 rounded-xl border text-xs font-semibold flex items-center space-x-2 bg-emerald-500/10 text-emerald-400 border-emerald-500/30 animate-fade-in">
+                    <CheckCircle2 size={15} />
+                    <span>JobSpy Engine Definitions are synchronized with latest PyPI release ({jobspyInfo?.latest || '1.1.75'}).</span>
+                  </div>
+                )}
+              </div>
+
+              {/* GitHub Repository Link */}
               <div className="p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
                 <div>
                   <h4 className="text-xs font-bold text-text-primary">Open Source Repository</h4>

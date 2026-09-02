@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useUIStore } from '../store/useUIStore';
 import { useDiscoveredJobsStore } from '../store/useDiscoveredJobsStore';
-import { Search, CheckCircle2, ArrowRight, X, Bell, ExternalLink } from 'lucide-react';
+import { Search, CheckCircle2, ArrowRight, X, Bell } from 'lucide-react';
 
 export const NotificationBanner: React.FC = () => {
   const { setActiveTab } = useUIStore();
@@ -158,15 +158,17 @@ export const NotificationBanner: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-1.5 shrink-0">
-            <a
-              href={appUpdateNotification.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs px-3 py-1.5 rounded-xl bg-sky-500 text-black font-extrabold hover:bg-sky-400 transition-all flex items-center space-x-1 shadow-md"
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('settings');
+                setAppUpdateNotification(null);
+              }}
+              className="text-xs px-3 py-1.5 rounded-xl bg-sky-500 text-black font-extrabold hover:bg-sky-400 transition-all flex items-center space-x-1 shadow-md cursor-pointer"
             >
-              <span>View Update</span>
-              <ExternalLink size={12} />
-            </a>
+              <span>Update Internally</span>
+              <ArrowRight size={12} />
+            </button>
             <button
               type="button"
               onClick={() => setAppUpdateNotification(null)}
