@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type JobApplication, type JobStatus } from '../db/schema';
 import { useUIStore } from '../store/useUIStore';
 import { useDiscoveredJobsStore } from '../store/useDiscoveredJobsStore';
 import { type JobListing } from '../adapters';
 import { AITailorModal } from './AITailorModal';
+import { verifyJobUrlsBatch, getCachedLiveness, type VerificationStatus } from '../utils/livenessService';
 import { 
   Search, 
   MapPin, 
@@ -17,7 +18,10 @@ import {
   RotateCcw,
   ChevronLeft,
   ChevronRight,
-  Trash2
+  Trash2,
+  ShieldCheck,
+  ShieldAlert,
+  RefreshCw
 } from 'lucide-react';
 
 const PAGE_SIZE = 12;
@@ -39,24 +43,26 @@ const isFresherFriendly = (job: JobListing): boolean => {
   return text.includes('fresher') || text.includes('entry level') || text.includes('graduate') || text.includes('0-1') || text.includes('intern');
 };
 
-
 export const FoundJobsView: React.FC = () => {
   const { setActiveTab } = useUIStore();
   const foundJobs = useDiscoveredJobsStore(state => state.foundJobs);
   const clearFoundJobs = useDiscoveredJobsStore(state => state.clearFoundJobs);
   const lastSearchQuery = useDiscoveredJobsStore(state => state.lastSearchQuery);
   const lastSearchLocation = useDiscoveredJobsStore(state => state.lastSearchLocation);
-  const isSearching = useDiscoveredJobsStore(state => state.isSearching);
-  const searchProgress = useDiscoveredJobsStore(state => state.searchProgress);
 
   // Filters within found jobs
   const [filterQuery, setFilterQuery] = useState('');
   const [filterSource, setFilterSource] = useState('all');
+  const [fresherOnly, setFresherOnly] = useState(false);
+  const [activeOnly, setActiveOnly] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Liveness Verification State
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [livenessMap, setLivenessMap] = useState<Map<string, VerificationStatus>>(new Map());
 
   // Modals
   const [tailorJobTarget, setTailorJobTarget] = useState<{ company: string; role: string; location?: string; description?: string } | null>(null);
-  const [selectedJobModal, setSelectedJobModal] = useState<JobListing | null>(null);
 
   // Existing tracker jobs to show saved state
   const trackerJobs = useLiveQuery(() => db.jobs.toArray()) || [];
@@ -75,6 +81,24 @@ export const FoundJobsView: React.FC = () => {
     return Array.from(set);
   }, [foundJobs]);
 
+  // Automatic & Manual URL liveness check
+  const handleVerifyAllLinks = async () => {
+    if (foundJobs.length === 0) return;
+    setIsVerifying(true);
+    try {
+      const map = await verifyJobUrlsBatch(foundJobs);
+      setLivenessMap(new Map(map));
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  useEffect(() => {
+    if (foundJobs.length > 0) {
+      handleVerifyAllLinks();
+    }
+  }, [foundJobs.length]);
+
   // Filtered jobs
   const filteredJobs = useMemo(() => {
     return foundJobs.filter((job) => {
@@ -88,10 +112,16 @@ export const FoundJobsView: React.FC = () => {
       }
 
       if (filterSource !== 'all' && job.source !== filterSource) return false;
+      if (fresherOnly && !isFresherFriendly(job)) return false;
+
+      if (activeOnly) {
+        const live = livenessMap.get(job.url) || getCachedLiveness(job.url, job.source);
+        if (live && !live.isActive) return false;
+      }
 
       return true;
     });
-  }, [foundJobs, filterQuery, filterSource]);
+  }, [foundJobs, filterQuery, filterSource, fresherOnly, activeOnly, livenessMap]);
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredJobs.length / PAGE_SIZE));
@@ -125,7 +155,11 @@ export const FoundJobsView: React.FC = () => {
   };
 
   const getSourceBadgeStyle = (src?: string) => {
-    switch ((src || '').toLowerCase()) {
+    const s = (src || '').toLowerCase();
+    if (s.startsWith('ats:') || s.includes('greenhouse') || s.includes('lever') || s.includes('ashby')) {
+      return { bg: 'rgba(6, 182, 212, 0.18)', text: '#22D3EE', border: 'rgba(6, 182, 212, 0.35)' };
+    }
+    switch (s) {
       case 'linkedin': return { bg: 'rgba(10, 102, 194, 0.18)', text: '#38BDF8', border: 'rgba(10, 102, 194, 0.35)' };
       case 'indeed': return { bg: 'rgba(0, 58, 140, 0.18)', text: '#60A5FA', border: 'rgba(0, 58, 140, 0.35)' };
       case 'naukri': return { bg: 'rgba(255, 117, 85, 0.18)', text: '#FB923C', border: 'rgba(255, 117, 85, 0.35)' };
@@ -178,318 +212,297 @@ export const FoundJobsView: React.FC = () => {
             onClick={() => setActiveTab('search')}
             className="btn-primary text-xs px-3.5 py-1.5 flex items-center space-x-1.5 font-bold cursor-pointer"
           >
-            <Search size={13} />
-            <span>Search New Jobs</span>
+            <RotateCcw size={12} />
+            <span>New Scan</span>
           </button>
         </div>
       </div>
 
-      {/* ── Live Searching Indicator ── */}
-      {isSearching && (
-        <div className="p-3.5 rounded-xl border flex flex-col gap-2 animate-fade-in" style={{ background: 'rgba(6, 182, 212, 0.1)', borderColor: 'rgba(6, 182, 212, 0.3)' }}>
-          <div className="flex items-center justify-between text-xs font-bold text-cyan-400">
-            <span className="flex items-center space-x-2">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-              <span>Scraping job boards in real-time...</span>
-            </span>
-            <span>{Math.round(searchProgress)}%</span>
-          </div>
-          <div className="w-full h-1.5 rounded-full bg-surface-raised overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-cyan-400 to-indigo-500 transition-all duration-300" style={{ width: `${searchProgress}%` }} />
-          </div>
-        </div>
-      )}
-
-      {/* ── Filters Bar within Found Jobs ── */}
+      {/* ── Filter Bar & Expiry Controls ── */}
       {foundJobs.length > 0 && (
-        <div className="p-3 rounded-2xl border flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <div className="relative flex-1 min-w-0">
-              <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-text-muted" />
-              <input
-                type="text"
-                placeholder="Filter by title, company, skills..."
-                value={filterQuery}
-                onChange={(e) => { setFilterQuery(e.target.value); setCurrentPage(1); }}
-                className="w-full border rounded-xl pl-9 pr-3 py-1.5 text-xs text-text-primary focus:outline-none"
-                style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
-              />
-            </div>
-
-            {availableSources.length > 0 && (
-              <select
-                value={filterSource}
-                onChange={(e) => { setFilterSource(e.target.value); setCurrentPage(1); }}
-                className="border rounded-xl px-2.5 py-1.5 text-xs text-text-primary focus:outline-none bg-surface-raised shrink-0 cursor-pointer"
-                style={{ borderColor: 'var(--border-subtle)' }}
-              >
-                <option value="all">All Sources</option>
-                {availableSources.map(s => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            )}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-3 rounded-2xl border" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
+          {/* Quick Search Input */}
+          <div className="relative flex-1 min-w-[200px]">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+            <input
+              type="text"
+              value={filterQuery}
+              onChange={(e) => { setFilterQuery(e.target.value); setCurrentPage(1); }}
+              placeholder="Filter by title, company or skill..."
+              className="w-full text-xs pl-8 pr-3 py-1.5 rounded-xl border outline-none bg-surface text-text-primary focus:border-cyan-500/50"
+              style={{ borderColor: 'var(--border-subtle)' }}
+            />
           </div>
 
-          <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 text-xs text-text-muted">
-            <span>Showing {filteredJobs.length} of {foundJobs.length}</span>
-            {(filterQuery || filterSource !== 'all') && (
-              <button
-                onClick={() => { setFilterQuery(''); setFilterSource('all'); setCurrentPage(1); }}
-                className="text-cyan-400 hover:underline flex items-center space-x-1 cursor-pointer"
-              >
-                <RotateCcw size={11} />
-                <span>Reset</span>
-              </button>
-            )}
+          <div className="flex items-center space-x-2 overflow-x-auto pb-1 sm:pb-0">
+            {/* Source Filter Dropdown */}
+            <select
+              value={filterSource}
+              onChange={(e) => { setFilterSource(e.target.value); setCurrentPage(1); }}
+              className="text-xs px-2.5 py-1.5 rounded-xl border outline-none bg-surface text-text-primary cursor-pointer shrink-0"
+              style={{ borderColor: 'var(--border-subtle)' }}
+            >
+              <option value="all">All Portals ({foundJobs.length})</option>
+              {availableSources.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+
+            {/* Fresher Filter Toggle */}
+            <button
+              type="button"
+              onClick={() => { setFresherOnly(!fresherOnly); setCurrentPage(1); }}
+              className={`text-xs px-3 py-1.5 rounded-xl border flex items-center space-x-1.5 font-bold transition-all cursor-pointer shrink-0 ${
+                fresherOnly
+                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 shadow-xs'
+                  : 'text-text-muted hover:text-text-primary'
+              }`}
+              style={{ background: fresherOnly ? undefined : 'var(--bg-surface-raised)', borderColor: fresherOnly ? undefined : 'var(--border-subtle)' }}
+            >
+              <span>🌱 Freshers Only</span>
+            </button>
+
+            {/* Verified Active Only Filter Toggle */}
+            <button
+              type="button"
+              onClick={() => { setActiveOnly(!activeOnly); setCurrentPage(1); }}
+              className={`text-xs px-3 py-1.5 rounded-xl border flex items-center space-x-1.5 font-bold transition-all cursor-pointer shrink-0 ${
+                activeOnly
+                  ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40 shadow-xs'
+                  : 'text-text-muted hover:text-text-primary'
+              }`}
+              style={{ background: activeOnly ? undefined : 'var(--bg-surface-raised)', borderColor: activeOnly ? undefined : 'var(--border-subtle)' }}
+              title="Hide closed or expired jobs"
+            >
+              <ShieldCheck size={13} />
+              <span>Verified Active Only</span>
+            </button>
+
+            {/* 1-Tap Link Verifier Button */}
+            <button
+              type="button"
+              onClick={handleVerifyAllLinks}
+              disabled={isVerifying}
+              className="text-xs px-3 py-1.5 rounded-xl border flex items-center space-x-1.5 font-semibold text-text-muted hover:text-cyan-400 hover:border-cyan-500/30 transition-all cursor-pointer shrink-0"
+              style={{ background: 'var(--bg-surface-raised)', borderColor: 'var(--border-subtle)' }}
+              title="Ping and scan destination URLs for live/closed status"
+            >
+              <RefreshCw size={12} className={isVerifying ? 'animate-spin text-cyan-400' : ''} />
+              <span>{isVerifying ? 'Verifying...' : 'Check Links'}</span>
+            </button>
           </div>
         </div>
       )}
 
-      {/* ── Empty State ── */}
-      {foundJobs.length === 0 && !isSearching && (
-        <div className="card p-12 text-center flex flex-col items-center justify-center space-y-4 rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
-          <div className="p-4 rounded-2xl bg-cyan-500/10 text-cyan-400">
-            <Briefcase size={36} />
+      {/* ── Main Job Cards Grid ── */}
+      {foundJobs.length === 0 ? (
+        <div className="flex flex-col items-center justify-center p-12 text-center rounded-2xl border my-auto" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
+          <div className="p-4 rounded-2xl bg-cyan-500/10 text-cyan-400 mb-3">
+            <Layers size={32} />
           </div>
-          <div className="max-w-md">
-            <h3 className="text-base font-bold text-text-primary font-display">No jobs discovered yet</h3>
-            <p className="text-xs text-text-muted mt-1 leading-relaxed">
-              Launch a search query in <strong>Search Job</strong> to discover live openings across LinkedIn, Naukri, Indeed, Glassdoor, and ZipRecruiter!
-            </p>
-          </div>
+          <h2 className="text-base font-bold text-text-primary">No Jobs Found Yet</h2>
+          <p className="text-xs text-text-muted max-w-md mt-1 mb-4">
+            Start a job scan in the Search tab to stream live postings directly from LinkedIn, Naukri, Indeed, Glassdoor, Greenhouse & Lever into this tab.
+          </p>
           <button
             type="button"
             onClick={() => setActiveTab('search')}
-            className="btn-primary text-xs px-5 py-2.5 font-bold flex items-center space-x-2 cursor-pointer shadow-lg hover:scale-105 transition-all"
+            className="btn-primary text-xs px-4 py-2 font-bold flex items-center space-x-2 cursor-pointer"
           >
             <Search size={14} />
-            <span>Go to Search Job</span>
+            <span>Go to Search Tab</span>
           </button>
         </div>
-      )}
+      ) : filteredJobs.length === 0 ? (
+        <div className="p-8 text-center rounded-2xl border" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
+          <p className="text-xs text-text-muted">No jobs match your selected filters.</p>
+          <button
+            type="button"
+            onClick={() => { setFilterQuery(''); setFilterSource('all'); setFresherOnly(false); setActiveOnly(false); }}
+            className="text-xs text-cyan-400 hover:underline mt-2 font-bold cursor-pointer"
+          >
+            Reset Filters
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            {paginatedJobs.map((job, idx) => {
+              const badgeStyle = getSourceBadgeStyle(job.source);
+              const key = `${job.company.toLowerCase()}__${job.title.toLowerCase()}`;
+              const trackerJob = trackerLookup.get(key);
+              const isSaved = Boolean(trackerJob);
+              const liveness = livenessMap.get(job.url) || getCachedLiveness(job.url, job.source);
+              const isExpired = liveness && !liveness.isActive;
 
-      {/* ── Job Cards Grid ── */}
-      {paginatedJobs.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {paginatedJobs.map((job, idx) => {
-            const key = `${job.company.toLowerCase()}__${job.title.toLowerCase()}`;
-            const trackerRecord = trackerLookup.get(key);
-            const badgeStyle = getSourceBadgeStyle(job.source);
-
-            return (
-              <div
-                key={`${job.source}_${job.company}_${idx}`}
-                className="card p-4 rounded-2xl border flex flex-col justify-between transition-all duration-200 hover:border-cyan-500/40 hover:-translate-y-0.5 group"
-                style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}
-              >
-                <div className="space-y-2.5">
-                  {/* Top: Source Badge, Fresher Tag & Relative Timestamp */}
-                  <div className="flex items-center justify-between gap-1.5 flex-wrap">
-                    <div className="flex items-center space-x-1.5">
-                      <span
-                        className="text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0"
-                        style={{ background: badgeStyle.bg, color: badgeStyle.text, borderColor: badgeStyle.border }}
-                      >
-                        {job.source}
-                      </span>
-                      {isFresherFriendly(job) && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
-                          🌱 Fresher (0-1 Yrs)
-                        </span>
-                      )}
-                    </div>
-                    {(() => {
-                      const rel = formatRelativeDate(job.postedDate);
-                      return (
-                        <span className={`text-[10px] font-semibold truncate ${rel.isToday ? 'text-emerald-400' : 'text-text-muted'}`}>
-                          {rel.isToday ? '🟢 Today' : rel.text}
-                        </span>
-                      );
-                    })()}
-                  </div>
-
-                  {/* Title & Company */}
+              return (
+                <div
+                  key={`${job.url || job.title}-${idx}`}
+                  className={`p-4 rounded-2xl border flex flex-col justify-between transition-all hover:border-cyan-500/40 relative group ${
+                    isExpired ? 'opacity-65 border-rose-500/30' : ''
+                  }`}
+                  style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}
+                >
                   <div>
-                    <h3 
-                      onClick={() => setSelectedJobModal(job)}
-                      className="text-sm font-bold font-display text-text-primary hover:text-cyan-400 transition-colors cursor-pointer line-clamp-1"
-                      title={job.title}
-                    >
+                    {/* Top: Source Badge, Fresher Tag, Liveness & Timestamp */}
+                    <div className="flex items-center justify-between gap-1.5 flex-wrap mb-2">
+                      <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                        <span
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0"
+                          style={{ background: badgeStyle.bg, color: badgeStyle.text, borderColor: badgeStyle.border }}
+                        >
+                          {job.source}
+                        </span>
+
+                        {isFresherFriendly(job) && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
+                            🌱 Fresher (0-1 Yrs)
+                          </span>
+                        )}
+
+                        {liveness?.isATS ? (
+                          <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded-md bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 shrink-0 flex items-center space-x-0.5">
+                            <ShieldCheck size={10} />
+                            <span>100% Live ATS</span>
+                          </span>
+                        ) : isExpired ? (
+                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-md bg-rose-500/20 text-rose-400 border border-rose-500/40 shrink-0 flex items-center space-x-0.5">
+                            <ShieldAlert size={10} />
+                            <span>Expired / Closed</span>
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0 flex items-center space-x-0.5">
+                            <ShieldCheck size={10} />
+                            <span>🟢 Active</span>
+                          </span>
+                        )}
+                      </div>
+
+                      {(() => {
+                        const rel = formatRelativeDate(job.postedDate);
+                        return (
+                          <span className={`text-[10px] font-semibold truncate ${rel.isToday ? 'text-emerald-400' : 'text-text-muted'}`}>
+                            {rel.isToday ? '🟢 Today' : rel.text}
+                          </span>
+                        );
+                      })()}
+                    </div>
+
+                    {/* Role Title */}
+                    <h3 className="text-sm font-bold text-text-primary line-clamp-2 group-hover:text-cyan-400 transition-colors">
                       {job.title}
                     </h3>
-                    <p className="text-xs font-semibold text-text-secondary mt-0.5 line-clamp-1">{job.company}</p>
-                  </div>
 
-                  {/* Location & Salary */}
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted">
-                    <span className="flex items-center gap-1">
-                      <MapPin size={12} className="shrink-0" />
-                      <span className="truncate">{job.location}</span>
-                    </span>
+                    {/* Company & Location */}
+                    <div className="flex flex-col gap-1 mt-1.5">
+                      <div className="flex items-center space-x-1 text-xs font-semibold text-text-secondary">
+                        <Briefcase size={12} className="text-cyan-400 shrink-0" />
+                        <span className="truncate">{job.company}</span>
+                      </div>
+                      <div className="flex items-center space-x-1 text-[11px] text-text-muted">
+                        <MapPin size={11} className="shrink-0" />
+                        <span className="truncate">{job.location || 'India'}</span>
+                      </div>
+                    </div>
+
+                    {/* Salary */}
                     {job.salary && job.salary !== 'Not Specified' && (
-                      <span className="font-bold text-emerald-400 text-[11px] truncate">
+                      <div className="mt-2 text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md inline-block border border-emerald-500/20">
                         {job.salary}
-                      </span>
+                      </div>
+                    )}
+
+                    {/* Description Snippet */}
+                    {job.description && (
+                      <p className="text-[11px] text-text-muted line-clamp-2 mt-2 leading-relaxed">
+                        {job.description}
+                      </p>
                     )}
                   </div>
 
-                  {/* Snippet */}
-                  {job.description && (
-                    <p className="text-[11px] text-text-muted line-clamp-2 leading-relaxed">
-                      {job.description}
-                    </p>
-                  )}
-                </div>
-
-                {/* Bottom Action Bar */}
-                <div className="pt-3 mt-3 border-t flex items-center justify-between gap-2" style={{ borderColor: 'var(--border-subtle)' }}>
-                  {/* AI Tailor Button */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTailorJobTarget({
-                        company: job.company,
-                        role: job.title,
-                        location: job.location,
-                        description: job.description
-                      });
-                    }}
-                    className="text-[11px] px-2.5 py-1.5 rounded-xl border flex items-center space-x-1 font-semibold transition-all cursor-pointer hover:scale-105"
-                    style={{ background: 'rgba(6, 182, 212, 0.12)', color: '#06B6D4', borderColor: 'rgba(6, 182, 212, 0.3)' }}
-                    title="Tailor ATS resume for this role with AI"
-                  >
-                    <Sparkles size={12} />
-                    <span>AI Tailor</span>
-                  </button>
-
-                  <div className="flex items-center space-x-1.5">
-                    {/* Quick Bookmark / Save to Tracker */}
+                  {/* Actions Bar */}
+                  <div className="flex items-center justify-between gap-2 mt-4 pt-3 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+                    {/* Track Status / Bookmark */}
                     <button
                       type="button"
-                      onClick={() => handleSaveToTracker(job, 'Wishlist')}
-                      className={`text-[11px] px-2.5 py-1.5 rounded-xl border flex items-center space-x-1 transition-all cursor-pointer ${
-                        trackerRecord
-                          ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 font-bold'
-                          : 'bg-surface-raised text-text-secondary hover:text-text-primary border-subtle'
+                      onClick={() => handleSaveToTracker(job, isSaved ? 'Rejected' : 'Wishlist')}
+                      className={`text-xs px-2.5 py-1.5 rounded-xl border flex items-center space-x-1 font-semibold transition-all cursor-pointer ${
+                        isSaved
+                          ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
+                          : 'text-text-muted hover:text-text-primary border-subtle'
                       }`}
-                      title={trackerRecord ? 'Saved in Tracker' : 'Save to Tracker (Wishlist)'}
+                      style={{ background: isSaved ? undefined : 'var(--bg-surface-raised)' }}
                     >
-                      {trackerRecord ? <BookmarkCheck size={12} /> : <Bookmark size={12} />}
-                      <span>{trackerRecord ? 'Saved' : 'Save'}</span>
+                      {isSaved ? <BookmarkCheck size={13} /> : <Bookmark size={13} />}
+                      <span>{isSaved ? trackerJob?.status || 'Tracked' : 'Track'}</span>
                     </button>
 
-                    {/* Direct External Link */}
-                    {job.url && (
-                      <a
-                        href={job.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-1.5 rounded-xl border text-text-muted hover:text-text-primary hover:bg-surface-raised transition-colors shrink-0"
-                        style={{ borderColor: 'var(--border-subtle)' }}
-                        title="Open Original Job Listing"
+                    <div className="flex items-center space-x-1.5">
+                      {/* AI Tailor Resume */}
+                      <button
+                        type="button"
+                        onClick={() => setTailorJobTarget({ company: job.company, role: job.title, location: job.location, description: job.description })}
+                        className="text-xs p-1.5 rounded-xl border text-purple-400 hover:bg-purple-500/15 border-purple-500/30 transition-all cursor-pointer"
+                        title="Tailor Resume with AI"
                       >
-                        <ExternalLink size={13} />
-                      </a>
-                    )}
+                        <Sparkles size={13} />
+                      </button>
+
+                      {/* Direct Apply Link */}
+                      {job.url && (
+                        <a
+                          href={job.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn-primary text-xs px-3 py-1.5 flex items-center space-x-1 font-bold cursor-pointer"
+                        >
+                          <span>Apply</span>
+                          <ExternalLink size={11} />
+                        </a>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center space-x-2 pt-4">
+              <button
+                type="button"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-2 rounded-xl border text-text-muted hover:text-text-primary disabled:opacity-40 cursor-pointer"
+                style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <span className="text-xs text-text-muted font-bold px-2">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded-xl border text-text-muted hover:text-text-primary disabled:opacity-40 cursor-pointer"
+                style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          )}
+        </>
       )}
 
-      {/* ── Pagination ── */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between gap-3 p-3 rounded-2xl border" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
-          <button
-            type="button"
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            className="btn-secondary text-xs px-3 py-1.5 flex items-center space-x-1 disabled:opacity-40 cursor-pointer"
-          >
-            <ChevronLeft size={14} />
-            <span>Prev</span>
-          </button>
-
-          <span className="text-xs font-bold text-text-muted">
-            Page {currentPage} of {totalPages}
-          </span>
-
-          <button
-            type="button"
-            disabled={currentPage === totalPages}
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-            className="btn-secondary text-xs px-3 py-1.5 flex items-center space-x-1 disabled:opacity-40 cursor-pointer"
-          >
-            <span>Next</span>
-            <ChevronRight size={14} />
-          </button>
-        </div>
-      )}
-
-      {/* ── AI Tailor Modal ── */}
+      {/* AI Resume Tailor Modal */}
       {tailorJobTarget && (
         <AITailorModal
-          isOpen={true}
+          isOpen={Boolean(tailorJobTarget)}
           job={tailorJobTarget}
           onClose={() => setTailorJobTarget(null)}
         />
-      )}
-
-      {/* ── Selected Job Details Modal ── */}
-      {selectedJobModal && (
-        <div 
-          className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in"
-          onClick={() => setSelectedJobModal(null)}
-        >
-          <div 
-            className="card w-full max-w-xl max-h-[85vh] flex flex-col rounded-2xl border shadow-2xl overflow-hidden animate-scale-up"
-            style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-4 px-6 border-b flex items-center justify-between shrink-0" style={{ borderColor: 'var(--border-subtle)' }}>
-              <div>
-                <h3 className="text-sm font-bold text-text-primary font-display">{selectedJobModal.title}</h3>
-                <p className="text-xs text-text-secondary">{selectedJobModal.company} • {selectedJobModal.location}</p>
-              </div>
-              <button onClick={() => setSelectedJobModal(null)} className="text-text-muted hover:text-text-primary text-xl font-bold cursor-pointer">&times;</button>
-            </div>
-            <div className="p-5 overflow-y-auto space-y-4 text-xs text-text-secondary leading-relaxed">
-              {selectedJobModal.salary && (
-                <div className="p-2.5 rounded-xl border bg-surface-raised flex items-center justify-between" style={{ borderColor: 'var(--border-subtle)' }}>
-                  <span className="text-text-muted">Offered Compensation:</span>
-                  <span className="font-bold text-emerald-400">{selectedJobModal.salary}</span>
-                </div>
-              )}
-              <div>
-                <h4 className="font-bold text-text-primary mb-1">Job Description &amp; Highlights:</h4>
-                <p className="whitespace-pre-line text-text-muted">{selectedJobModal.description || 'No detailed snippet available from provider.'}</p>
-              </div>
-            </div>
-            <div className="p-4 border-t flex items-center justify-between" style={{ borderColor: 'var(--border-subtle)' }}>
-              <button
-                type="button"
-                onClick={() => { handleSaveToTracker(selectedJobModal, 'Wishlist'); setSelectedJobModal(null); }}
-                className="btn-secondary text-xs px-3.5 py-1.5 cursor-pointer"
-              >
-                Save to Tracker
-              </button>
-              {selectedJobModal.url && (
-                <a
-                  href={selectedJobModal.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-primary text-xs px-4 py-1.5 flex items-center space-x-1.5"
-                >
-                  <span>Open Job Application</span>
-                  <ExternalLink size={13} />
-                </a>
-              )}
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

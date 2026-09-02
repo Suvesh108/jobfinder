@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
-from routers import ats, careers, v1
+from routers import ats, careers, v1, verifier
 from config import load_companies_config
 from cache import clear_all_cache, get_all_valid_cached_jobs
 
@@ -24,6 +24,7 @@ app.add_middleware(
 app.include_router(v1.router)
 app.include_router(ats.router)
 app.include_router(careers.router)
+app.include_router(verifier.router)
 
 @app.get("/health")
 def health():
