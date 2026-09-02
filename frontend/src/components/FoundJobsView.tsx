@@ -24,7 +24,12 @@ const PAGE_SIZE = 12;
 
 export const FoundJobsView: React.FC = () => {
   const { setActiveTab } = useUIStore();
-  const { foundJobs, clearFoundJobs, lastSearchQuery, lastSearchLocation, isSearching, searchProgress } = useDiscoveredJobsStore();
+  const foundJobs = useDiscoveredJobsStore(state => state.foundJobs);
+  const clearFoundJobs = useDiscoveredJobsStore(state => state.clearFoundJobs);
+  const lastSearchQuery = useDiscoveredJobsStore(state => state.lastSearchQuery);
+  const lastSearchLocation = useDiscoveredJobsStore(state => state.lastSearchLocation);
+  const isSearching = useDiscoveredJobsStore(state => state.isSearching);
+  const searchProgress = useDiscoveredJobsStore(state => state.searchProgress);
 
   // Filters within found jobs
   const [filterQuery, setFilterQuery] = useState('');

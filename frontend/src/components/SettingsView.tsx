@@ -1,4 +1,4 @@
-import { fetchLatestRelease, downloadAndInstallApk, type ReleaseInfo } from '../utils/updaterService';
+import { fetchLatestRelease } from '../utils/updaterService';
 import React, { useState, useEffect } from 'react';
 import { db, getUserProfile, saveUserProfile, type JobApplication, type UserProfile } from '../db/schema';
 import { useUIStore, type AppTheme } from '../store/useUIStore';
@@ -37,7 +37,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 
-const CURRENT_VERSION = 'v1.1.3';
+const CURRENT_VERSION = 'v1.1.4';
 
 export const SettingsView: React.FC = () => {
   const { 
@@ -69,16 +69,9 @@ export const SettingsView: React.FC = () => {
   const [isImporting, setIsImporting] = useState(false);
   const [showClearModal, setShowClearModal] = useState(false);
 
-  // About & In-App OTA Update State
+  // About & Update State
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
-  const [releaseInfo, setReleaseInfo] = useState<ReleaseInfo | null>(null);
   const [updateStatus, setUpdateStatus] = useState<{ checked: boolean; isLatest: boolean; latestTag?: string; releaseUrl?: string; error?: string } | null>(null);
-  const [isDownloadingApk, setIsDownloadingApk] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState(0);
-  const [downloadLoadedMb, setDownloadLoadedMb] = useState('');
-  const [downloadTotalMb, setDownloadTotalMb] = useState('');
-  const [downloadFinished, setDownloadFinished] = useState(false);
-  const [installedBlobUrl, setInstalledBlobUrl] = useState<string | null>(null);
 
   useEffect(() => {
     // Load AI Config
@@ -164,10 +157,8 @@ export const SettingsView: React.FC = () => {
   const handleCheckForUpdates = async () => {
     setIsCheckingUpdate(true);
     setUpdateStatus(null);
-    setDownloadFinished(false);
     try {
       const info = await fetchLatestRelease();
-      setReleaseInfo(info);
       if (info) {
         const isLatest = info.tag.toLowerCase() === CURRENT_VERSION.toLowerCase();
         setUpdateStatus({
@@ -186,27 +177,6 @@ export const SettingsView: React.FC = () => {
       });
     } finally {
       setIsCheckingUpdate(false);
-    }
-  };
-
-  const handleDownloadAndInstall = async () => {
-    setIsDownloadingApk(true);
-    setDownloadProgress(0);
-    setDownloadFinished(false);
-
-    const targetUrl = releaseInfo?.apkDownloadUrl || `https://github.com/Suvesh108/jobfinder/releases/download/${CURRENT_VERSION}/JobFinder-${CURRENT_VERSION}.apk`;
-    const targetFile = releaseInfo?.apkFileName || `JobFinder-${CURRENT_VERSION}.apk`;
-
-    const res = await downloadAndInstallApk(targetUrl, targetFile, (pct, loaded, total) => {
-      setDownloadProgress(pct);
-      setDownloadLoadedMb(loaded);
-      setDownloadTotalMb(total);
-    });
-
-    setIsDownloadingApk(false);
-    if (res.success) {
-      setDownloadFinished(true);
-      if (res.blobUrl) setInstalledBlobUrl(res.blobUrl);
     }
   };
 
@@ -811,17 +781,17 @@ export const SettingsView: React.FC = () => {
           )}
 
           {/* ══════════════════════════════════════════════════════════════
-              TAB 5: ABOUT & IN-APP OTA UPDATES
+              TAB 5: ABOUT & APP UPDATES
               ══════════════════════════════════════════════════════════════ */}
           {activeSubTab === 'about' && (
             <div className="space-y-6 animate-fade-in">
               <div>
                 <h3 className="text-sm font-bold text-text-primary font-display flex items-center space-x-2">
                   <Info className="h-4 w-4 text-sky-400" />
-                  <span>About JobFinder &amp; In-App OTA Updater</span>
+                  <span>About JobFinder &amp; Updates</span>
                 </h3>
                 <p className="text-[11px] text-text-muted mt-0.5">
-                  Check for new releases and download &amp; install APK updates directly within the app.
+                  View installed version information and check for new releases directly from GitHub.
                 </p>
               </div>
 
@@ -843,84 +813,19 @@ export const SettingsView: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-2 w-full sm:w-auto">
-                    <button
-                      type="button"
-                      onClick={handleCheckForUpdates}
-                      disabled={isCheckingUpdate || isDownloadingApk}
-                      className="btn-secondary text-xs px-3.5 py-2 font-bold flex items-center justify-center space-x-1.5 flex-1 sm:flex-initial cursor-pointer"
-                    >
-                      <RefreshCw size={13} className={isCheckingUpdate ? 'animate-spin' : ''} />
-                      <span>{isCheckingUpdate ? 'Checking...' : 'Check for Update'}</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleDownloadAndInstall}
-                      disabled={isDownloadingApk}
-                      className="btn-primary text-xs px-4 py-2 font-bold flex items-center justify-center space-x-1.5 flex-1 sm:flex-initial cursor-pointer shadow-md hover:scale-105 transition-all"
-                    >
-                      <Download size={13} className={isDownloadingApk ? 'animate-bounce' : ''} />
-                      <span>{isDownloadingApk ? 'Downloading...' : 'Download & Install APK'}</span>
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCheckForUpdates}
+                    disabled={isCheckingUpdate}
+                    className="btn-primary text-xs px-4 py-2 font-bold flex items-center justify-center space-x-1.5 cursor-pointer shadow-md hover:scale-105 transition-all shrink-0"
+                  >
+                    <RefreshCw size={13} className={isCheckingUpdate ? 'animate-spin' : ''} />
+                    <span>{isCheckingUpdate ? 'Checking...' : 'Check for Update'}</span>
+                  </button>
                 </div>
 
-                {/* In-App Download Progress Card */}
-                {isDownloadingApk && (
-                  <div className="p-4 rounded-2xl border space-y-2.5 animate-fade-in" style={{ background: 'rgba(6, 182, 212, 0.12)', borderColor: 'rgba(6, 182, 212, 0.35)' }}>
-                    <div className="flex items-center justify-between text-xs font-bold text-cyan-400">
-                      <span className="flex items-center space-x-2">
-                        <Download size={14} className="animate-bounce" />
-                        <span>Downloading JobFinder Update in Background...</span>
-                      </span>
-                      <span>{downloadProgress}% {downloadLoadedMb && `(${downloadLoadedMb}MB / ${downloadTotalMb}MB)`}</span>
-                    </div>
-                    <div className="w-full h-2 rounded-full overflow-hidden bg-surface-raised">
-                      <div className="h-full bg-gradient-to-r from-cyan-400 to-indigo-500 transition-all duration-200" style={{ width: `${downloadProgress}%` }} />
-                    </div>
-                  </div>
-                )}
-
-                {/* Download Complete & Ready to Install Alert */}
-                {downloadFinished && (
-                  <div className="p-4 rounded-2xl border space-y-3 animate-fade-in" style={{ background: 'rgba(16, 185, 129, 0.15)', borderColor: 'rgba(16, 185, 129, 0.35)' }}>
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <div className="flex items-center space-x-2 text-emerald-400 font-bold text-xs">
-                        <CheckCircle2 size={16} />
-                        <span>Update APK Downloaded Successfully!</span>
-                      </div>
-                      <span className="text-[11px] text-text-muted">Ready to install</span>
-                    </div>
-                    <p className="text-xs text-text-secondary">
-                      The package installer prompt has been triggered. If your device did not show the install dialog, tap the button below to open the package installer:
-                    </p>
-                    <div className="flex items-center space-x-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (installedBlobUrl) {
-                            const a = document.createElement('a');
-                            a.href = installedBlobUrl;
-                            a.download = releaseInfo?.apkFileName || `JobFinder-${CURRENT_VERSION}.apk`;
-                            document.body.appendChild(a);
-                            a.click();
-                            setTimeout(() => a.remove(), 1000);
-                          } else {
-                            handleDownloadAndInstall();
-                          }
-                        }}
-                        className="btn-primary text-xs px-4 py-2 font-bold flex items-center space-x-1.5 cursor-pointer"
-                      >
-                        <Download size={13} />
-                        <span>Install JobFinder APK Now</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-
                 {/* Update Result Alert */}
-                {updateStatus && !isDownloadingApk && !downloadFinished && (
+                {updateStatus && (
                   <div 
                     className="p-3.5 rounded-xl border text-xs font-semibold flex items-center justify-between gap-3 animate-fade-in"
                     style={{
@@ -933,20 +838,23 @@ export const SettingsView: React.FC = () => {
                       {updateStatus.isLatest ? <CheckCircle2 size={16} className="shrink-0" /> : <Sparkles size={16} className="shrink-0" />}
                       <span>
                         {updateStatus.isLatest 
-                          ? `You are running JobFinder ${CURRENT_VERSION}. Everything is up to date.`
-                          : `New version available! (${updateStatus.latestTag})`}
+                          ? `JobFinder ${CURRENT_VERSION} is up to date.`
+                          : `New update available! (${updateStatus.latestTag})`}
                       </span>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={handleDownloadAndInstall}
-                      className="px-3 py-1 rounded-lg border text-xs font-bold flex items-center space-x-1 shrink-0 bg-surface hover:scale-105 transition-transform cursor-pointer"
-                      style={{ borderColor: 'var(--border-subtle)' }}
-                    >
-                      <Download size={11} />
-                      <span>{updateStatus.isLatest ? 'Reinstall APK' : 'Update App'}</span>
-                    </button>
+                    {!updateStatus.isLatest && (
+                      <a
+                        href={updateStatus.releaseUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1 rounded-lg border text-xs font-bold flex items-center space-x-1 shrink-0 bg-surface hover:scale-105 transition-transform cursor-pointer"
+                        style={{ borderColor: 'var(--border-subtle)' }}
+                      >
+                        <span>View Release</span>
+                        <ExternalLink size={11} />
+                      </a>
+                    )}
                   </div>
                 )}
 
@@ -957,8 +865,8 @@ export const SettingsView: React.FC = () => {
                     <span className="text-xs font-bold text-text-primary">React 19 + Vite</span>
                   </div>
                   <div className="p-2.5 rounded-xl bg-surface-raised border" style={{ borderColor: 'var(--border-subtle)' }}>
-                    <span className="text-[9px] text-text-muted uppercase font-bold block">OTA Engine</span>
-                    <span className="text-xs font-bold text-text-primary">In-App Installer</span>
+                    <span className="text-[9px] text-text-muted uppercase font-bold block">Engine</span>
+                    <span className="text-xs font-bold text-text-primary">Multi-Scraper</span>
                   </div>
                   <div className="p-2.5 rounded-xl bg-surface-raised border" style={{ borderColor: 'var(--border-subtle)' }}>
                     <span className="text-[9px] text-text-muted uppercase font-bold block">Database</span>

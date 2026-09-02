@@ -5,6 +5,7 @@ import { TrackerView } from './components/TrackerView';
 import { SearchView } from './components/SearchView';
 import { FoundJobsView } from './components/FoundJobsView';
 import { SettingsView } from './components/SettingsView';
+import { NotificationBanner } from './components/NotificationBanner';
 import { ProfileView } from './components/ProfileView';
 import { AIChatCopilot } from './components/AIChatCopilot';
 import { useUIStore, applyThemeToDocument } from './store/useUIStore';
@@ -30,6 +31,8 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      {/* ── Top In-App Notifications (Search % & Updates) ── */}
+      <NotificationBanner />
       {/* ── Left Sidebar (desktop) ── */}
       <Sidebar />
 
