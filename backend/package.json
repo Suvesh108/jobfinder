@@ -1,0 +1,21 @@
+{
+  "name": "jobfinder-backend",
+  "version": "2.0.0",
+  "description": "Unified Multi-Service Backend Runner for JobFinder (JobSpy on 8000, ATS & Career Crawler on 8002)",
+  "private": true,
+  "main": "dev.js",
+  "scripts": {
+    "dev": "node dev.js",
+    "start": "node dev.js",
+    "jobspy": "python -m uvicorn scraper-service-py.main:app --port 8000 --reload",
+    "ats": "python -m uvicorn ats-crawler-service.main:app --port 8002 --reload"
+  },
+  "keywords": [
+    "jobfinder",
+    "jobspy",
+    "ats-crawler",
+    "fastapi"
+  ],
+  "author": "JobFinder",
+  "license": "MIT"
+}
