@@ -1,24 +1,18 @@
 import { useDiscoveredJobsStore } from '../store/useDiscoveredJobsStore';
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type JobApplication, type JobStatus } from '../db/schema';
+import { db } from '../db/schema';
 import { useUIStore } from '../store/useUIStore';
 import { adapters, type JobListing } from '../adapters';
 import { dedupeJobs } from '../utils/dedupeJobs';
-import { AITailorModal } from './AITailorModal';
-import { TailoredResumeModal } from './TailoredResumeModal';
 import { 
   Search, 
   MapPin, 
   Briefcase, 
   ExternalLink, 
-  Bookmark, 
-  BookmarkCheck, 
   Clock, 
-  ChevronDown,
-  Square,
-  Sparkles,
-  FileText
+  ChevronDown, 
+  Square
 } from 'lucide-react';
 
 // ─── All Indian States, UTs & Major Cities ───────────────────────────────────
@@ -548,8 +542,6 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
 /* ═══════════════════════════════════════════════════════════════════
    SEARCH VIEW COMPONENT (TWO SUB-PAGES: QUERY FORM vs DEDICATED RESULTS)
    ═══════════════════════════════════════════════════════════════════ */
-const PAGE_SIZE = 10;
-const MAX_PAGES = 5; // Max 50 items displayed across 5 pages
 
 const expandRoleToQueries = (role: string): string[] => {
   const parts = role
@@ -560,7 +552,7 @@ const expandRoleToQueries = (role: string): string[] => {
 };
 
 export const SearchView: React.FC = () => {
-  const enabledAdapters = useUIStore(state => state.enabledAdapters);
+  const { enabledAdapters, setActiveTab } = useUIStore();
 
   // Filter & Query States
   const [selectedRoles, setSelectedRoles] = useState<string[]>(['Software Engineer / Full Stack Developer']);
@@ -575,11 +567,10 @@ export const SearchView: React.FC = () => {
   const [jobMode, setJobMode] = useState<'tech' | 'nontech'>('tech');
   
   // Navigation & Progress States
-    const [searchProgress, setSearchProgress] = useState<number>(0);
+  const [searchProgress, setSearchProgress] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [results, setResults] = useState<JobListing[]>([]);
-    const [currentPage, setCurrentPage] = useState(1);
 
   const handleDateOptionChange = (option: string) => {
     setDateOption(option);
@@ -625,20 +616,12 @@ export const SearchView: React.FC = () => {
     return filtered;
   }, [results, trackedUrls, trackedJobs]);
 
-  // Pagination derived state using only untracked results
-  const totalPages = Math.min(MAX_PAGES, Math.max(1, Math.ceil(untrackedResults.length / PAGE_SIZE)));
-  const pagedResults = useMemo(() => {
-    return untrackedResults.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-  }, [untrackedResults, currentPage]);
-
   // State for accumulative raw results across streaming adapter fetches
   const [rawListings, setRawListings] = useState<JobListing[]>([]);
   const rawListingsRef = useRef<JobListing[]>([]);
   const searchCacheRef = useRef<Map<string, JobListing[]>>(new Map());
   const isAbortedRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const [tailorModalJob, setTailorModalJob] = useState<{ company: string; role: string; location?: string; description?: string } | null>(null);
-  const [resumeModalJob, setResumeModalJob] = useState<JobApplication | null>(null);
 
   const handleStopSearch = () => {
     isAbortedRef.current = true;
@@ -795,7 +778,6 @@ export const SearchView: React.FC = () => {
     isAbortedRef.current = false;
     setIsLoading(true);
     setHasSearched(true);
-    setCurrentPage(1);
     setSourceCounts({});
         setSearchProgress(10);
     // Keep unified view // Redirect to dedicated results page
@@ -914,28 +896,7 @@ export const SearchView: React.FC = () => {
     });
   };
 
-  const handleSaveToTracker = async (listing: JobListing, status: JobStatus = 'Wishlist') => {
-    const todayStr = new Date().toISOString().split('T')[0];
-
-    const newJob: JobApplication = {
-      company: listing.company,
-      role: listing.title,
-      location: listing.location,
-      salary: listing.salary,
-      sourceSite: listing.source,
-      dateApplied: todayStr,
-      lastStatusChange: todayStr,
-      status: status,
-      statusHistory: [
-        { status: status, date: new Date().toISOString() }
-      ],
-      link: listing.url,
-      notes: listing.description || '',
-      tags: ['cold apply'],
-    };
-
-    await db.jobs.add(newJob);
-  };
+  // handleSaveToTracker is managed in FoundJobsView
 
   return (
     <div className="page-content w-full max-w-full px-3 sm:px-8 py-3 sm:py-6 pb-24 sm:pb-10 overflow-y-auto overflow-x-hidden flex flex-col gap-4">
@@ -1161,199 +1122,51 @@ export const SearchView: React.FC = () => {
         )}
 
         {/* ══════════════════════════════════════════════════════════════
-            LIVE SEARCH RESULTS FEED
+            DISCOVERY RADAR & PORTAL SCAN SUMMARY (CARDS MOVED TO FOUND TAB)
             ══════════════════════════════════════════════════════════════ */}
         {hasSearched && (
-          <div className="space-y-4 animate-fade-in">
-            {/* Results Status Ribbon */}
-            <div className="card p-3.5 flex items-center justify-between flex-wrap gap-3 border" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
-              <div className="flex items-center space-x-2">
-                <span className="text-xs font-bold text-text-primary font-display">
-                  Found <span className="text-cyan-400 font-extrabold">{untrackedResults.length}</span> Open Positions
-                </span>
-                <span className="text-[10px] text-text-muted">•</span>
-                <span className="text-[11px] text-text-muted">
-                  Roles: {selectedRoles.join(', ') || 'All Roles'} ({locQuery || 'India'})
-                </span>
-              </div>
-
-              {/* Source breakdown badges */}
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {Object.entries(sourceCounts).map(([src, count]) => (
-                  <span key={src} className="px-2 py-0.5 rounded-md border font-mono text-[10px]" style={{ background: 'var(--bg-surface-raised)', borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)' }}>
-                    {src}: <strong className="text-cyan-400">{count}</strong>
+          <div className="card p-5 sm:p-6 space-y-4 rounded-2xl border animate-fade-in shadow-xl" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-xs animate-pulse" />
+                  <h3 className="text-sm sm:text-base font-bold text-text-primary font-display">
+                    {isLoading ? 'Scanning Job Portals...' : 'Scan Complete!'}
+                  </h3>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                    {untrackedResults.length} Jobs Discovered
                   </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Results Cards List */}
-            <div className="space-y-3">
-              {pagedResults.length === 0 ? (
-                <div className="card p-12 text-center space-y-3 border" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
-                  <p className="text-xs font-bold text-text-primary">
-                    {isLoading ? 'Scanning job boards...' : 'No matching listings found for this query.'}
-                  </p>
-                  <p className="text-[11px] text-text-muted">
-                    {isLoading ? 'Results will stream live into this feed.' : 'Try selecting different roles or relaxing your filters.'}
-                  </p>
                 </div>
-              ) : (
-                pagedResults.map(job => {
-                  const isSaved = trackedUrls.has(job.url);
-                  return (
-                    <div 
-                      key={job.url}
-                      className="card p-5 flex flex-col md:flex-row md:items-start md:justify-between gap-5 relative group border hover:border-cyan-500/40 hover:shadow-xl transition-all duration-200"
-                      style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}
-                    >
-                      <div className="flex items-start space-x-4 min-w-0 flex-1">
-                        <div 
-                          className="h-11 w-11 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 select-none text-white shadow-xs"
-                          style={{ background: 'linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%)' }}
-                        >
-                          {(job.company && job.company.length > 0) ? job.company.charAt(0).toUpperCase() : 'J'}
-                        </div>
+                <p className="text-xs text-text-muted">
+                  All listings are streamed into your dedicated <strong>Found Jobs</strong> tab with source filters, instant ATS resume tailoring, and 1-click tracker saving.
+                </p>
+              </div>
 
-                        <div className="space-y-1.5 min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h4 className="text-sm font-bold font-display text-text-primary group-hover:text-cyan-400 transition-colors">
-                              {job.title}
-                            </h4>
-                            <span className="text-xs text-text-muted">•</span>
-                            <span className="text-xs font-semibold text-text-secondary">{job.company}</span>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-muted">
-                            <span className="flex items-center gap-1">
-                              <MapPin className="h-3.5 w-3.5 text-text-muted" />
-                              <span>{job.location}</span>
-                            </span>
-                            
-                            {job.salary && (
-                              <>
-                                <span className="opacity-30">•</span>
-                                <span className="font-bold text-emerald-400">{job.salary}</span>
-                              </>
-                            )}
-
-                            <span className="opacity-30">•</span>
-                            <span className="px-2 py-0.5 rounded-md border text-[10px] font-semibold" style={{ background: 'var(--bg-surface-raised)', borderColor: 'var(--border-subtle)' }}>
-                              {job.source}
-                            </span>
-                          </div>
-
-                          {job.description && (
-                            <p className="text-[11px] text-text-muted line-clamp-2 leading-relaxed pt-1">
-                              {job.description}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Right Action Bar with Direct Apply & AI Tailoring */}
-                      <div className="flex flex-wrap md:flex-col items-center md:items-end justify-between md:justify-start gap-2 shrink-0 border-t md:border-t-0 pt-3 md:pt-0" style={{ borderColor: 'var(--border-subtle)' }}>
-                        <div className="flex items-center space-x-1.5">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setTailorModalJob({
-                                company: job.company,
-                                role: job.title,
-                                location: job.location,
-                                description: job.description
-                              });
-                            }}
-                            className="btn-secondary text-[11px] px-2.5 py-1.5 flex items-center space-x-1 font-bold text-cyan-400 hover:border-cyan-500/40"
-                            title="AI Tailored Application Package"
-                          >
-                            <Sparkles size={12} className="text-cyan-400" />
-                            <span>Tailor</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setResumeModalJob({
-                                company: job.company,
-                                role: job.title,
-                                location: job.location,
-                                salary: job.salary || 'Competitive',
-                                sourceSite: job.source,
-                                dateApplied: new Date().toISOString().split('T')[0],
-                                lastStatusChange: new Date().toISOString().split('T')[0],
-                                status: 'Wishlist',
-                                statusHistory: [],
-                                link: job.url,
-                                notes: job.description || '',
-                                tags: []
-                              });
-                            }}
-                            className="btn-secondary text-[11px] px-2.5 py-1.5 flex items-center space-x-1 font-bold hover:border-indigo-500/40 hover:text-indigo-400"
-                            title="Generate Jake's ATS Resume for this position"
-                          >
-                            <FileText size={12} />
-                            <span>Resume</span>
-                          </button>
-
-                          <a
-                            href={job.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="btn-primary text-[11px] px-3 py-1.5 flex items-center space-x-1 font-bold"
-                          >
-                            <span>Apply</span>
-                            <ExternalLink size={11} />
-                          </a>
-                        </div>
-
-                        {/* Save to Tracker Button */}
-                        <button
-                          type="button"
-                          onClick={() => handleSaveToTracker(job)}
-                          disabled={isSaved}
-                          className={`text-[10px] font-bold px-3 py-1 rounded-lg border flex items-center space-x-1 transition-all ${
-                            isSaved 
-                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
-                              : 'text-text-muted hover:text-text-primary hover:border-slate-500/40'
-                          }`}
-                        >
-                          {isSaved ? <BookmarkCheck size={12} /> : <Bookmark size={12} />}
-                          <span>{isSaved ? 'In Tracker' : 'Save to Tracker'}</span>
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
+              {/* Direct Jump to Found Jobs Button */}
+              <button
+                type="button"
+                onClick={() => setActiveTab('found_jobs')}
+                className="btn-primary text-xs sm:text-sm px-5 py-2.5 flex items-center justify-center space-x-2 font-bold cursor-pointer shadow-lg hover:scale-105 transition-all shrink-0"
+              >
+                <span>View {untrackedResults.length} Found Jobs</span>
+                <ExternalLink size={14} />
+              </button>
             </div>
 
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between p-3 rounded-xl border bg-surface mt-2" style={{ borderColor: 'var(--border-subtle)' }}>
-                <button
-                  type="button"
-                  disabled={currentPage <= 1}
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  className="btn-secondary text-xs px-3 py-1.5 disabled:opacity-30 cursor-pointer"
+            {/* Platform Source Breakdown Badges */}
+            <div className="pt-3 border-t flex flex-wrap items-center gap-2" style={{ borderColor: 'var(--border-subtle)' }}>
+              <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider mr-1">Portal Radar:</span>
+              {Object.entries(sourceCounts).map(([src, count]) => (
+                <span 
+                  key={src} 
+                  className="px-2.5 py-1 rounded-xl border text-xs font-semibold flex items-center space-x-1.5"
+                  style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}
                 >
-                  ← Previous
-                </button>
-
-                <span className="text-xs font-semibold text-text-muted">
-                  Page <strong className="text-text-primary">{currentPage}</strong> of <strong className="text-text-primary">{totalPages}</strong>
+                  <span className="text-text-secondary">{src}:</span>
+                  <strong className="text-cyan-400">{count}</strong>
                 </span>
-
-                <button
-                  type="button"
-                  disabled={currentPage >= totalPages}
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                  className="btn-secondary text-xs px-3 py-1.5 disabled:opacity-30 cursor-pointer"
-                >
-                  Next →
-                </button>
-              </div>
-            )}
+              ))}
+            </div>
           </div>
         )}
 
@@ -1444,22 +1257,7 @@ export const SearchView: React.FC = () => {
 
       </div>
 
-      {/* ── Modals for Tailoring & Resume ── */}
-      {tailorModalJob && (
-        <AITailorModal
-          isOpen={Boolean(tailorModalJob)}
-          onClose={() => setTailorModalJob(null)}
-          job={tailorModalJob}
-        />
-      )}
 
-      {resumeModalJob && (
-        <TailoredResumeModal
-          isOpen={Boolean(resumeModalJob)}
-          onClose={() => setResumeModalJob(null)}
-          job={resumeModalJob}
-        />
-      )}
     </div>
   );
 };
