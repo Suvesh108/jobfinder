@@ -28,8 +28,15 @@ import {
   Eye, 
   EyeOff, 
   ExternalLink,
-  Wand2
+  Wand2,
+  Info,
+  ChevronDown,
+  ChevronUp,
+  Download,
+  CheckCircle2
 } from 'lucide-react';
+
+const CURRENT_VERSION = 'v1.1.1';
 
 export const SettingsView: React.FC = () => {
   const { 
@@ -41,7 +48,7 @@ export const SettingsView: React.FC = () => {
     setTheme 
   } = useUIStore();
 
-  const [activeSubTab, setActiveSubTab] = useState<'ai' | 'scrapers' | 'preferences' | 'database'>('ai');
+  const [activeSubTab, setActiveSubTab] = useState<'ai' | 'scrapers' | 'preferences' | 'database' | 'about'>('ai');
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [dbSuccessMessage, setDbSuccessMessage] = useState<string | null>(null);
   const [jobspyStatus, setJobspyStatus] = useState<'checking' | 'running' | 'offline'>('checking');
@@ -60,6 +67,10 @@ export const SettingsView: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [showClearModal, setShowClearModal] = useState(false);
+
+  // About & Update Check State
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState<{ checked: boolean; isLatest: boolean; latestTag?: string; releaseUrl?: string; error?: string } | null>(null);
 
   useEffect(() => {
     // Load AI Config
@@ -108,12 +119,18 @@ export const SettingsView: React.FC = () => {
         aiBaseUrl,
         aiModel: result.workingModel
       });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2500);
     }
 
     setIsDetecting(false);
   };
 
-  const handleProviderSelect = (prov: AIProviderId) => {
+  const handleProviderToggle = (prov: AIProviderId) => {
+    if (aiProvider === prov) {
+      // already open
+      return;
+    }
     setAiProvider(prov);
     const cfg = AI_PROVIDERS.find(p => p.id === prov);
     if (cfg) {
@@ -134,6 +151,35 @@ export const SettingsView: React.FC = () => {
     });
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 2500);
+  };
+
+  const handleCheckForUpdates = async () => {
+    setIsCheckingUpdate(true);
+    setUpdateStatus(null);
+    try {
+      const res = await fetch('https://api.github.com/repos/Suvesh108/jobfinder/releases/latest');
+      if (!res.ok) throw new Error('Failed to reach GitHub release API');
+      const data = await res.json();
+      const latestTag = data.tag_name || data.name || '';
+      
+      const isLatest = latestTag.toLowerCase() === CURRENT_VERSION.toLowerCase() || !latestTag;
+      setUpdateStatus({
+        checked: true,
+        isLatest,
+        latestTag: latestTag || CURRENT_VERSION,
+        releaseUrl: data.html_url || 'https://github.com/Suvesh108/jobfinder/releases'
+      });
+    } catch (err) {
+      // Fallback: assume up to date if offline
+      setUpdateStatus({
+        checked: true,
+        isLatest: true,
+        latestTag: CURRENT_VERSION,
+        releaseUrl: 'https://github.com/Suvesh108/jobfinder/releases'
+      });
+    } finally {
+      setIsCheckingUpdate(false);
+    }
   };
 
   const handleDaysChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -174,7 +220,7 @@ export const SettingsView: React.FC = () => {
         let newCount = 0;
         let dupCount = 0;
         const currentJobs = await db.jobs.toArray();
-        const existingKeys = new Set(currentJobs.map(j => `${j.company.toLowerCase()}__${j.role.toLowerCase()}`));
+        const existingKeys = new Set(currentJobs.map(j => `${String(j.company).toLowerCase()}__${String(j.role).toLowerCase()}`));
 
         for (const j of importedJobs) {
           if (!j.company || !j.role) continue;
@@ -182,7 +228,6 @@ export const SettingsView: React.FC = () => {
           if (existingKeys.has(key)) {
             dupCount++;
           } else {
-            // ponytail: whitelist and sanitize schema fields to prevent malicious payload insertion
             const sanitizedJob = {
               company: String(j.company || '').slice(0, 200),
               role: String(j.role || '').slice(0, 200),
@@ -220,32 +265,36 @@ export const SettingsView: React.FC = () => {
     await db.jobs.clear();
     setAllJobs([]);
     setShowClearModal(false);
-    setDbSuccessMessage('All application records cleared.');
+    setDbSuccessMessage('All application records have been permanently cleared.');
     setTimeout(() => setDbSuccessMessage(null), 3000);
   };
 
+  const SUB_TABS = [
+    { id: 'ai', label: 'AI Providers & API Keys', icon: Sparkles, color: 'text-cyan-400' },
+    { id: 'scrapers', label: 'JobSpy Scrapers', icon: Sliders, color: 'text-indigo-400' },
+    { id: 'preferences', label: 'Preferences & Theme', icon: Palette, color: 'text-purple-400' },
+    { id: 'database', label: 'Database & Backups', icon: Database, color: 'text-emerald-400' },
+    { id: 'about', label: 'About & Updates', icon: Info, color: 'text-sky-400' },
+  ] as const;
+
   return (
     <div className="page-content w-full max-w-full px-3 sm:px-8 py-3 sm:py-6 pb-24 sm:pb-10 overflow-y-auto overflow-x-hidden">
-      <div className="w-full max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-[240px_1fr] gap-6 items-start">
+      <div className="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-[240px_1fr] gap-6">
         
-        {/* Left Sub-Tabs Selector (Fixed 240px width) */}
+        {/* Left Navigation Sub-Tabs */}
         <div className="w-full card p-2 shrink-0 flex md:flex-col overflow-x-auto md:overflow-visible gap-1.5 md:space-y-1.5 shadow-xl border scrollbar-none" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
-          {[
-            { id: 'ai', label: 'AI Providers & API Keys', icon: Sparkles, color: 'text-cyan-400' },
-            { id: 'scrapers', label: 'JobSpy Scrapers', icon: Sliders, color: 'text-indigo-400' },
-            { id: 'preferences', label: 'Preferences & Theme', icon: Palette, color: 'text-purple-400' },
-            { id: 'database', label: 'Database & Backups', icon: Database, color: 'text-emerald-400' }
-          ].map(tab => {
+          {SUB_TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeSubTab === tab.id;
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveSubTab(tab.id as any)}
+                type="button"
+                onClick={() => setActiveSubTab(tab.id)}
                 className={`w-auto md:w-full whitespace-nowrap text-left px-3 py-2 md:px-3.5 md:py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all cursor-pointer border shrink-0 ${
                   isActive 
-                    ? 'shadow-xs text-text-primary' 
-                    : 'text-text-muted hover:text-text-primary hover:bg-surface-raised/40 border-transparent'
+                    ? 'text-text-primary shadow-xs' 
+                    : 'text-text-muted hover:text-text-primary hover:bg-surface-raised/50'
                 }`}
                 style={{
                   background: isActive ? 'var(--sidebar-item-active)' : 'transparent',
@@ -262,12 +311,14 @@ export const SettingsView: React.FC = () => {
           })}
         </div>
 
-        {/* Right Content Area (Guaranteed 100% width with min-w-0 to prevent horizontal expansion) */}
-        <div className="w-full min-w-0 card p-6 space-y-6" style={{ background: 'var(--bg-surface)' }}>
+        {/* Right Content Area */}
+        <div className="w-full min-w-0 card p-4 sm:p-6 space-y-6" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
           
-          {/* TAB 1: AI PROVIDERS & API CONFIGURATION */}
+          {/* ══════════════════════════════════════════════════════════════
+              TAB 1: AI PROVIDERS (INLINE EXPANDING ACCORDION CARDS)
+              ══════════════════════════════════════════════════════════════ */}
           {activeSubTab === 'ai' && (
-            <div className="space-y-6 animate-fade-in">
+            <div className="space-y-5 animate-fade-in">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h3 className="text-sm font-bold text-text-primary font-display flex items-center space-x-2">
@@ -275,14 +326,14 @@ export const SettingsView: React.FC = () => {
                     <span>AI Providers &amp; Auto-Detect Engine</span>
                   </h3>
                   <p className="text-[11px] text-text-muted mt-0.5">
-                    Connect Gemini, OpenRouter, NVIDIA NIM, Groq, DeepSeek or local models. The system auto-detects active models to tailor your LaTeX resume from Candidate Profile.
+                    Click any provider below to expand and configure its API keys and active models inline.
                   </p>
                 </div>
 
                 <button
                   type="button"
                   onClick={handleSaveAIConfig}
-                  className="btn-primary text-xs px-4 py-2 flex items-center space-x-1.5 font-bold cursor-pointer"
+                  className="btn-primary text-xs px-4 py-2 flex items-center space-x-1.5 font-bold cursor-pointer shrink-0"
                 >
                   <Save className="h-3.5 w-3.5" />
                   <span>{saveSuccess ? 'Saved!' : 'Save Config'}</span>
@@ -291,407 +342,559 @@ export const SettingsView: React.FC = () => {
 
               {saveSuccess && (
                 <div className="p-3 rounded-xl border text-xs font-semibold flex items-center space-x-2 animate-fade-in" style={{ background: 'rgba(16, 185, 129, 0.12)', color: 'var(--status-success)', borderColor: 'rgba(16, 185, 129, 0.25)' }}>
-                  <Check className="h-4 w-4" />
+                  <Check className="h-4 w-4 shrink-0" />
                   <span>AI configuration saved successfully! Resume generation will use these live credentials.</span>
                 </div>
               )}
 
-              {/* Provider Selection Cards (Rich multi-provider grid) */}
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider block">
-                  Choose AI Engine / Free Provider
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                  {AI_PROVIDERS.map((prov) => {
-                    const isSelected = aiProvider === prov.id;
-                    return (
-                      <div
-                        key={prov.id}
-                        onClick={() => handleProviderSelect(prov.id)}
-                        className={`p-3 rounded-xl border transition-all cursor-pointer ${
-                          isSelected ? 'shadow-md ring-1' : 'hover:border-slate-500/50'
-                        }`}
-                        style={{
-                          background: isSelected ? 'var(--sidebar-item-active)' : 'var(--bg-card)',
-                          borderColor: isSelected ? prov.badgeColor : 'var(--border-subtle)',
-                        }}
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-bold text-text-primary flex items-center space-x-1.5 truncate">
-                            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: prov.badgeColor }} />
-                            <span className="truncate">{prov.name}</span>
-                          </span>
-                          <span 
-                            className="text-[9px] font-bold px-1.5 py-0.2 rounded-md shrink-0"
-                            style={{ background: 'var(--bg-surface-raised)', color: prov.badgeColor }}
-                          >
-                            {prov.badge}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-text-muted leading-tight line-clamp-2">{prov.tagline}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Selected Provider Details & Auto-Detect Engine */}
-              {aiProvider !== 'offline' && (
-                <div className="card p-5 space-y-4 border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
-                  
-                  {/* Header info & Dashboard Key link */}
-                  <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
-                    <div className="flex items-center space-x-2">
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ background: selectedProviderConfig.badgeColor }} />
-                      <span className="text-xs font-bold text-text-primary">{selectedProviderConfig.name} Setup</span>
-                    </div>
-
-                    {selectedProviderConfig.keyDashboardUrl && (
-                      <a
-                        href={selectedProviderConfig.keyDashboardUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[11px] text-cyan-400 hover:underline flex items-center space-x-1"
-                      >
-                        <span>Get Free API Key</span>
-                        <ExternalLink size={11} />
-                      </a>
-                    )}
-                  </div>
-
-                  {/* API Key input */}
-                  <div>
-                    <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider block mb-1.5 flex items-center justify-between">
-                      <span className="flex items-center space-x-1.5">
-                        <Key className="h-3 w-3" />
-                        <span>API Key</span>
-                      </span>
-                      {selectedProviderConfig.isFreeTier && (
-                        <span className="text-[10px] text-emerald-400 font-normal">✓ Free Tier Eligible</span>
-                      )}
-                    </label>
-                    
-                    <div className="relative flex items-center gap-2">
-                      <div className="relative flex-1">
-                        <input
-                          type={showApiKey ? 'text' : 'password'}
-                          placeholder={selectedProviderConfig.keyPlaceholder}
-                          value={aiApiKey}
-                          onChange={(e) => {
-                            setAiApiKey(e.target.value);
-                            setDetectResult(null);
-                          }}
-                          className="w-full border rounded-xl pl-4 pr-10 py-2.5 text-xs font-mono text-text-primary focus:outline-none"
-                          style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowApiKey(!showApiKey)}
-                          className="absolute right-3 top-2.5 text-text-muted hover:text-text-primary cursor-pointer"
-                          title={showApiKey ? 'Hide key' : 'Show key'}
-                        >
-                          {showApiKey ? <EyeOff size={15} /> : <Eye size={15} />}
-                        </button>
-                      </div>
-
-                      {/* Auto-Detect Working Model Button */}
-                      <button
-                        type="button"
-                        onClick={() => handleAutoDetectModel()}
-                        disabled={isDetecting || (!aiApiKey && aiProvider !== 'custom')}
-                        className="btn-primary text-xs px-3.5 py-2.5 font-bold flex items-center space-x-1.5 shrink-0 disabled:opacity-40"
-                        title="Ping provider and auto-select the best working model"
-                      >
-                        <Wand2 size={13} className={isDetecting ? 'animate-spin' : ''} />
-                        <span>{isDetecting ? 'Detecting...' : 'Auto-Detect Model'}</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Auto-Detect Result Badge */}
-                  {detectResult && (
-                    <div 
-                      className="p-3 rounded-xl border text-xs font-semibold flex items-center space-x-2 animate-fade-in"
-                      style={{
-                        background: detectResult.success ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-                        color: detectResult.success ? 'var(--status-success)' : 'var(--status-danger)',
-                        borderColor: detectResult.success ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)'
-                      }}
-                    >
-                      {detectResult.success ? <Check size={14} className="shrink-0" /> : <Zap size={14} className="shrink-0" />}
-                      <div className="flex-1 flex flex-wrap items-center justify-between gap-1">
-                        <span>{detectResult.message}</span>
-                        <span className="text-[10px] opacity-80">{detectResult.latencyMs}ms latency</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Active Model Identifier & Base URL */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                    <div>
-                      <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider block mb-1.5 flex items-center space-x-1.5">
-                        <Cpu className="h-3 w-3" />
-                        <span>Active Model</span>
-                      </label>
-                      <input
-                        type="text"
-                        placeholder={selectedProviderConfig.defaultModel}
-                        value={aiModel}
-                        onChange={(e) => setAiModel(e.target.value)}
-                        className="w-full border rounded-xl px-4 py-2 text-xs font-mono text-text-primary focus:outline-none"
-                        style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
-                      />
-                      <div className="flex flex-wrap gap-1 mt-1.5">
-                        {selectedProviderConfig.candidateModels.map(m => (
-                          <button
-                            key={m}
-                            type="button"
-                            onClick={() => {
-                              setAiModel(m);
-                              handleAutoDetectModel(undefined, undefined);
-                            }}
-                            className={`text-[10px] px-2 py-0.5 rounded-md border font-mono transition-colors cursor-pointer ${
-                              aiModel === m ? 'border-primary text-primary bg-primary/10' : 'text-text-muted hover:text-text-primary'
-                            }`}
-                            style={{ borderColor: 'var(--border-subtle)' }}
-                          >
-                            {m}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {aiProvider === 'custom' && (
-                      <div>
-                        <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider block mb-1.5 flex items-center space-x-1.5">
-                          <Globe className="h-3 w-3" />
-                          <span>Custom Base URL</span>
-                        </label>
-                        <input
-                          type="url"
-                          placeholder="http://localhost:11434/v1"
-                          value={aiBaseUrl}
-                          onChange={(e) => setAiBaseUrl(e.target.value)}
-                          className="w-full border rounded-xl px-4 py-2 text-xs font-mono text-text-primary focus:outline-none"
-                          style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                </div>
-              )}
-
-            </div>
-          )}
-
-          {/* TAB 2: JOBSPY SCRAPERS */}
-          {activeSubTab === 'scrapers' && (
-            <div className="space-y-6 animate-fade-in">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-bold text-text-primary font-display flex items-center space-x-2">
-                    <Sliders className="h-4 w-4 text-primary" />
-                    <span>JobSpy Multi-Channel Scraper Engine</span>
-                  </h3>
-                  <p className="text-[11px] text-text-muted mt-0.5">Toggle and configure job aggregator scrapers across Indian and global job channels.</p>
-                </div>
-              </div>
-
-              {/* Status Card */}
-              <div 
-                className="p-4 rounded-xl border flex items-center justify-between"
-                style={{ 
-                  background: jobspyStatus === 'running' ? 'rgba(16, 185, 129, 0.08)' : 'rgba(245, 158, 11, 0.08)',
-                  borderColor: jobspyStatus === 'running' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(245, 158, 11, 0.25)'
-                }}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="relative flex items-center justify-center">
-                    <span className={`w-3 h-3 rounded-full ${jobspyStatus === 'running' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                    <span className={`absolute w-3 h-3 rounded-full animate-ping opacity-75 ${jobspyStatus === 'running' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-text-primary">
-                      {jobspyStatus === 'running' ? 'JobSpy Python FastAPI Backend Connected' : 'JobSpy Backend Offline / Standby'}
-                    </h4>
-                    <p className="text-[11px] text-text-muted">
-                      {jobspyStatus === 'running' ? 'High-speed parallel scraping active across Naukri, Indeed, LinkedIn, Glassdoor, ZipRecruiter.' : 'Automated fallback to high-fidelity mock stream active.'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Adapter Toggles */}
+              {/* Accordion Provider Cards List */}
               <div className="space-y-3">
-                <h4 className="text-xs font-bold text-text-muted uppercase tracking-wider">Active Channel Adapters</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {adapters.map((adapter) => {
-                    const isEnabled = enabledAdapters.includes(adapter.id);
-                    return (
-                      <div
-                        key={adapter.id}
-                        onClick={() => toggleAdapter(adapter.id)}
-                        className="p-4 rounded-xl border flex items-center justify-between transition-all cursor-pointer hover:border-slate-500/40 select-none"
-                        style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}
-                      >
-                        <div className="space-y-1">
-                          <div className="flex items-center space-x-2">
-                            <span className="text-xs font-bold text-text-primary">{adapter.name}</span>
-                          </div>
-                          <p className="text-[11px] text-text-muted">Live job aggregator stream</p>
-                        </div>
-                        <div 
-                          className="w-11 h-6 rounded-full relative shrink-0 transition-colors duration-200 cursor-pointer shadow-inner" 
-                          style={{ 
-                            background: isEnabled ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)' : 'rgba(255, 255, 255, 0.12)',
-                            boxShadow: isEnabled ? '0 0 10px rgba(16, 185, 129, 0.4)' : 'none'
-                          }}
-                        >
-                          <span 
-                            className="absolute top-1 w-4 h-4 rounded-full bg-white transition-transform duration-200 shadow-md"
-                            style={{
-                              transform: isEnabled ? 'translateX(22px)' : 'translateX(3px)',
-                            }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: PREFERENCES & THEME */}
-          {activeSubTab === 'preferences' && (
-            <div className="space-y-6 animate-fade-in">
-              <div>
-                <h3 className="text-sm font-bold text-text-primary font-display flex items-center space-x-2">
-                  <Palette className="h-4 w-4 text-primary" />
-                  <span>Appearance &amp; Theme</span>
-                </h3>
-                <p className="text-[11px] text-text-muted mt-0.5">Select your preferred color theme. Changes apply instantly across the entire dashboard.</p>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { id: 'dark', label: 'Dark Theme', icon: Moon, desc: 'Abyssal obsidian & indigo glow' },
-                  { id: 'light', label: 'Light Theme', icon: Sun, desc: 'Crisp porcelain & royal slate' },
-                  { id: 'system', label: 'System Theme', icon: Monitor, desc: 'Syncs with OS preferences' },
-                ].map((item) => {
-                  const Icon = item.icon;
-                  const isSelected = theme === item.id;
+                {AI_PROVIDERS.map((prov) => {
+                  const isExpanded = aiProvider === prov.id;
+                  
                   return (
                     <div
-                      key={item.id}
-                      onClick={() => setTheme(item.id as AppTheme)}
-                      className={`p-4 rounded-xl border flex flex-col items-center justify-center space-y-2 cursor-pointer transition-all ${
-                        isSelected ? 'border-primary ring-1 ring-primary' : 'hover:border-slate-500/40'
+                      key={prov.id}
+                      className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
+                        isExpanded ? 'shadow-lg' : 'hover:border-cyan-500/30'
                       }`}
                       style={{
-                        background: isSelected ? 'var(--sidebar-item-active)' : 'var(--bg-card)',
-                        borderColor: isSelected ? 'var(--accent-primary)' : 'var(--border-subtle)',
+                        background: 'var(--bg-card)',
+                        borderColor: isExpanded ? prov.badgeColor : 'var(--border-subtle)',
                       }}
                     >
-                      <Icon size={20} className={isSelected ? 'text-primary' : 'text-text-muted'} />
-                      <span className="text-xs font-bold text-text-primary">{item.label}</span>
-                      <span className="text-[10px] text-text-muted text-center">{item.desc}</span>
+                      {/* Provider Card Header */}
+                      <div
+                        onClick={() => handleProviderToggle(prov.id)}
+                        className="p-3.5 sm:p-4 flex items-center justify-between cursor-pointer select-none"
+                        style={{
+                          background: isExpanded ? 'var(--sidebar-item-active)' : 'transparent'
+                        }}
+                      >
+                        <div className="flex items-center space-x-3 min-w-0 flex-1">
+                          <span 
+                            className="w-3 h-3 rounded-full shrink-0 shadow-xs" 
+                            style={{ background: prov.badgeColor }} 
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-xs sm:text-sm font-bold text-text-primary truncate font-display">
+                                {prov.name}
+                              </span>
+                              <span 
+                                className="text-[9px] font-bold px-1.5 py-0.2 rounded-md shrink-0"
+                                style={{ background: 'var(--bg-surface-raised)', color: prov.badgeColor }}
+                              >
+                                {prov.badge}
+                              </span>
+                            </div>
+                            <p className="text-[10px] sm:text-[11px] text-text-muted line-clamp-1 mt-0.5">
+                              {prov.tagline}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-2 shrink-0 ml-2">
+                          {isExpanded && (
+                            <span className="text-[10px] text-cyan-400 font-bold hidden sm:inline">Active</span>
+                          )}
+                          <div className="p-1 rounded-lg text-text-muted">
+                            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Inline Expanded Configuration Form */}
+                      {isExpanded && (
+                        <div className="p-4 sm:p-5 border-t space-y-4 animate-fade-in" style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-surface)' }}>
+                          
+                          {/* Top key link */}
+                          <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+                            <span className="text-xs font-semibold text-text-secondary">
+                              Configure {prov.name} Credentials
+                            </span>
+                            {prov.keyDashboardUrl && (
+                              <a
+                                href={prov.keyDashboardUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[11px] text-cyan-400 hover:underline flex items-center space-x-1"
+                              >
+                                <span>Get API Key</span>
+                                <ExternalLink size={11} />
+                              </a>
+                            )}
+                          </div>
+
+                          {/* API Key Input & Auto-Detect Button */}
+                          {prov.id !== 'offline' && (
+                            <div>
+                              <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider block mb-1.5 flex items-center justify-between">
+                                <span className="flex items-center space-x-1.5">
+                                  <Key className="h-3 w-3" />
+                                  <span>API Key</span>
+                                </span>
+                                {prov.isFreeTier && (
+                                  <span className="text-[10px] text-emerald-400 font-normal">✓ Free Tier Eligible</span>
+                                )}
+                              </label>
+
+                              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                                <div className="relative flex-1 min-w-0">
+                                  <input
+                                    type={showApiKey ? 'text' : 'password'}
+                                    placeholder={prov.keyPlaceholder}
+                                    value={aiApiKey}
+                                    onChange={(e) => {
+                                      setAiApiKey(e.target.value);
+                                      setDetectResult(null);
+                                    }}
+                                    className="w-full border rounded-xl pl-3.5 pr-10 py-2 text-xs font-mono text-text-primary focus:outline-none"
+                                    style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowApiKey(!showApiKey)}
+                                    className="absolute right-3 top-2 text-text-muted hover:text-text-primary cursor-pointer"
+                                    title={showApiKey ? 'Hide key' : 'Show key'}
+                                  >
+                                    {showApiKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                                  </button>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleAutoDetectModel(aiApiKey, prov.id)}
+                                  disabled={isDetecting || (!aiApiKey && prov.id !== 'custom')}
+                                  className="btn-primary text-xs px-3.5 py-2 font-bold flex items-center justify-center space-x-1.5 shrink-0 disabled:opacity-40 cursor-pointer"
+                                  title="Ping provider and auto-select the best working model"
+                                >
+                                  <Wand2 size={13} className={isDetecting ? 'animate-spin' : ''} />
+                                  <span>{isDetecting ? 'Detecting...' : 'Auto-Detect Model'}</span>
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Auto-Detect Result Badge */}
+                          {detectResult && (
+                            <div 
+                              className="p-3 rounded-xl border text-xs font-semibold flex items-center space-x-2 animate-fade-in"
+                              style={{
+                                background: detectResult.success ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                                color: detectResult.success ? 'var(--status-success)' : 'var(--status-danger)',
+                                borderColor: detectResult.success ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)'
+                              }}
+                            >
+                              {detectResult.success ? <Check size={14} className="shrink-0" /> : <Zap size={14} className="shrink-0" />}
+                              <div className="flex-1 flex flex-wrap items-center justify-between gap-1">
+                                <span>{detectResult.message}</span>
+                                <span className="text-[10px] opacity-80">{detectResult.latencyMs}ms latency</span>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Active Model Identifier */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                            <div>
+                              <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider block mb-1.5 flex items-center space-x-1.5">
+                                <Cpu className="h-3 w-3" />
+                                <span>Active Model</span>
+                              </label>
+                              <input
+                                type="text"
+                                placeholder={prov.defaultModel}
+                                value={aiModel}
+                                onChange={(e) => setAiModel(e.target.value)}
+                                className="w-full border rounded-xl px-3.5 py-1.5 text-xs font-mono text-text-primary focus:outline-none"
+                                style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
+                              />
+                              <div className="flex flex-wrap gap-1 mt-1.5">
+                                {prov.candidateModels.map(m => (
+                                  <button
+                                    key={m}
+                                    type="button"
+                                    onClick={() => { setAiModel(m); setDetectResult(null); }}
+                                    className={`text-[9px] px-2 py-0.5 rounded-md border font-mono transition-all cursor-pointer ${
+                                      aiModel === m 
+                                        ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 font-bold' 
+                                        : 'bg-surface-raised text-text-muted hover:text-text-primary border-subtle'
+                                    }`}
+                                  >
+                                    {m}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Base URL (for Ollama or Custom) */}
+                            {prov.id === 'custom' && (
+                              <div>
+                                <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider block mb-1.5 flex items-center space-x-1.5">
+                                  <Globe className="h-3 w-3" />
+                                  <span>Custom Endpoint / Base URL</span>
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder="http://localhost:11434/v1"
+                                  value={aiBaseUrl}
+                                  onChange={(e) => setAiBaseUrl(e.target.value)}
+                                  className="w-full border rounded-xl px-3.5 py-1.5 text-xs font-mono text-text-primary focus:outline-none"
+                                  style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
+                                />
+                                <span className="text-[10px] text-text-muted block mt-1">
+                                  Default: Ollama OpenAI-compatible endpoint
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Save CTA */}
+                          <div className="pt-2 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={handleSaveAIConfig}
+                              className="btn-primary text-xs px-4 py-2 flex items-center space-x-1.5 font-bold cursor-pointer"
+                            >
+                              <Save size={13} />
+                              <span>Save {prov.name}</span>
+                            </button>
+                          </div>
+
+                        </div>
+                      )}
                     </div>
                   );
                 })}
               </div>
+            </div>
+          )}
 
-              {/* Follow-up Reminder Threshold */}
-              <div className="pt-4 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
-                <h4 className="text-xs font-bold text-text-primary mb-1 flex items-center space-x-2">
-                  <Clock className="h-4 w-4 text-primary" />
-                  <span>Follow-up Alert Threshold</span>
-                </h4>
-                <p className="text-[11px] text-text-muted mb-3">
-                  Applications with no status change beyond this duration will be highlighted with a follow-up warning.
+          {/* ══════════════════════════════════════════════════════════════
+              TAB 2: JOBSPY SCRAPERS CONFIGURATION
+              ══════════════════════════════════════════════════════════════ */}
+          {activeSubTab === 'scrapers' && (
+            <div className="space-y-6 animate-fade-in">
+              <div>
+                <h3 className="text-sm font-bold text-text-primary font-display flex items-center space-x-2">
+                  <Sliders className="h-4 w-4 text-indigo-400" />
+                  <span>JobSpy Multi-Channel Scraper Engine</span>
+                </h3>
+                <p className="text-[11px] text-text-muted mt-0.5">
+                  Toggle platform adapters used during live searches. JobFinder connects to LinkedIn, Indeed, Naukri, Glassdoor, and ZipRecruiter in parallel.
                 </p>
+              </div>
 
+              {/* Status Indicator */}
+              <div className="p-4 rounded-2xl border flex items-center justify-between" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
                 <div className="flex items-center space-x-3">
+                  <div className={`w-3 h-3 rounded-full ${jobspyStatus === 'running' ? 'bg-emerald-400 shadow-xs' : 'bg-amber-400'}`} />
+                  <div>
+                    <h4 className="text-xs font-bold text-text-primary">FastAPI Python Scraper Microservice</h4>
+                    <p className="text-[10px] text-text-muted">JobSpy Python aggregator on Render with client-side failover fallback</p>
+                  </div>
+                </div>
+                <span className="text-xs font-bold px-2.5 py-1 rounded-full border text-emerald-400" style={{ background: 'rgba(16, 185, 129, 0.12)', borderColor: 'rgba(16, 185, 129, 0.3)' }}>
+                  {jobspyStatus === 'running' ? 'Connected' : 'Active (Local Fallback)'}
+                </span>
+              </div>
+
+              {/* Scraper Toggles */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider block">
+                  Enabled Job Board Scrapers
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {adapters.map((adp) => {
+                    const isEnabled = enabledAdapters.includes(adp.id);
+                    return (
+                      <div
+                        key={adp.id}
+                        onClick={() => toggleAdapter(adp.id)}
+                        className={`p-3.5 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
+                          isEnabled ? 'border-indigo-500/40' : 'opacity-60 border-subtle'
+                        }`}
+                        style={{ background: 'var(--bg-card)' }}
+                      >
+                        <div className="flex items-center space-x-2.5">
+                          <Globe className="h-4 w-4 text-indigo-400" />
+                          <div>
+                            <span className="text-xs font-bold text-text-primary block">{adp.name}</span>
+                            <span className="text-[10px] text-text-muted">Direct JobSpy Query Pipeline</span>
+                          </div>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={isEnabled}
+                          onChange={() => {}}
+                          className="h-4 w-4 rounded accent-indigo-500 pointer-events-none"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ══════════════════════════════════════════════════════════════
+              TAB 3: PREFERENCES & THEME
+              ══════════════════════════════════════════════════════════════ */}
+          {activeSubTab === 'preferences' && (
+            <div className="space-y-6 animate-fade-in">
+              <div>
+                <h3 className="text-sm font-bold text-text-primary font-display flex items-center space-x-2">
+                  <Palette className="h-4 w-4 text-purple-400" />
+                  <span>UI Preferences &amp; Notification Triggers</span>
+                </h3>
+                <p className="text-[11px] text-text-muted mt-0.5">
+                  Configure visual theme and follow-up reminder thresholds.
+                </p>
+              </div>
+
+              {/* Theme Selector */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider block">
+                  Application Color Scheme
+                </label>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { id: 'dark', label: 'Dark Mode', icon: Moon },
+                    { id: 'light', label: 'Light Mode', icon: Sun },
+                    { id: 'system', label: 'System Auto', icon: Monitor },
+                  ].map((t) => {
+                    const Icon = t.icon;
+                    const isSelected = theme === t.id;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setTheme(t.id as AppTheme)}
+                        className={`p-3.5 rounded-xl border flex flex-col items-center justify-center space-y-2 transition-all cursor-pointer ${
+                          isSelected ? 'border-purple-500 shadow-md ring-1 ring-purple-500/30 font-bold' : 'hover:border-slate-500/40'
+                        }`}
+                        style={{
+                          background: isSelected ? 'var(--sidebar-item-active)' : 'var(--bg-card)',
+                          borderColor: isSelected ? 'var(--accent-primary)' : 'var(--border-subtle)',
+                        }}
+                      >
+                        <Icon className={`h-5 w-5 ${isSelected ? 'text-purple-400' : 'text-text-muted'}`} />
+                        <span className="text-xs text-text-primary">{t.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Follow-up Reminder Days */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider block">
+                  Follow-up Stale Threshold (Days)
+                </label>
+                <div className="card p-4 rounded-xl border flex items-center justify-between gap-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+                  <div className="flex items-center space-x-2.5">
+                    <Clock className="h-4 w-4 text-purple-400 shrink-0" />
+                    <div>
+                      <span className="text-xs font-bold text-text-primary block">Automatic Stale Job Flagging</span>
+                      <span className="text-[10px] text-text-muted">Applications with no status change beyond this threshold show a follow-up indicator</span>
+                    </div>
+                  </div>
                   <input
                     type="number"
                     min={1}
                     max={90}
                     value={defaultReminderDays}
                     onChange={handleDaysChange}
-                    className="w-24 border rounded-xl px-3 py-1.5 text-xs text-text-primary focus:outline-none"
+                    className="w-20 border rounded-xl px-3 py-1.5 text-xs text-center font-bold text-text-primary focus:outline-none"
                     style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
                   />
-                  <span className="text-xs text-text-muted font-medium">Days of inactivity</span>
                 </div>
               </div>
             </div>
           )}
 
-          {/* TAB 4: DATABASE & BACKUPS */}
+          {/* ══════════════════════════════════════════════════════════════
+              TAB 4: DATABASE & BACKUPS
+              ══════════════════════════════════════════════════════════════ */}
           {activeSubTab === 'database' && (
             <div className="space-y-6 animate-fade-in">
               <div>
                 <h3 className="text-sm font-bold text-text-primary font-display flex items-center space-x-2">
-                  <Database className="h-4 w-4 text-primary" />
-                  <span>Database &amp; Data Portability</span>
+                  <Database className="h-4 w-4 text-emerald-400" />
+                  <span>Offline Storage &amp; Database Backups</span>
                 </h3>
                 <p className="text-[11px] text-text-muted mt-0.5">
-                  Backup your applications locally as JSON, import from another machine, or reset the local database.
+                  JobFinder stores all records locally in IndexedDB (Dexie.js). You have complete offline ownership of your data.
                 </p>
               </div>
 
               {dbSuccessMessage && (
                 <div className="p-3 rounded-xl border text-xs font-semibold flex items-center space-x-2 animate-fade-in" style={{ background: 'rgba(16, 185, 129, 0.12)', color: 'var(--status-success)', borderColor: 'rgba(16, 185, 129, 0.25)' }}>
-                  <Check className="h-4 w-4" />
+                  <Check className="h-4 w-4 shrink-0" />
                   <span>{dbSuccessMessage}</span>
                 </div>
               )}
 
-              <div className="card p-4 border flex items-center justify-between" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+              {/* Database Stats Card */}
+              <div className="p-4 rounded-2xl border flex items-center justify-between" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
                 <div>
-                  <h4 className="text-xs font-bold text-text-primary">Total Applications Stored</h4>
-                  <p className="text-[11px] text-text-muted">IndexedDB storage is active locally on this device.</p>
+                  <h4 className="text-xs font-bold text-text-primary">IndexedDB Local Pipeline</h4>
+                  <p className="text-[10px] text-text-muted">Stored securely in your local browser sandbox</p>
                 </div>
-                <span className="text-lg font-black font-display text-cyan-400">{allJobs.length}</span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-lg font-black font-display text-emerald-400">{allJobs.length}</span>
+                  <span className="text-xs text-text-muted font-medium">applications stored</span>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Export Backup */}
+              {/* Action Buttons */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <button
                   type="button"
                   onClick={handleExportDatabase}
                   disabled={isExporting}
-                  className="btn-secondary p-4 rounded-xl flex flex-col items-center justify-center space-y-1.5"
+                  className="btn-secondary text-xs p-3 flex flex-col items-center justify-center space-y-1.5 cursor-pointer font-bold"
                 >
-                  <Database className="h-5 w-5 text-primary" />
-                  <span className="text-xs font-bold">Export JSON Backup</span>
-                  <span className="text-[10px] text-text-muted">Download all applications and status history</span>
+                  <Download className="h-4 w-4 text-emerald-400" />
+                  <span>{isExporting ? 'Exporting...' : 'Export Backup (JSON)'}</span>
                 </button>
 
-                {/* Import Backup */}
-                <label className="btn-secondary p-4 rounded-xl flex flex-col items-center justify-center space-y-1.5 cursor-pointer">
-                  <RefreshCw className={`h-5 w-5 text-primary ${isImporting ? 'animate-spin' : ''}`} />
-                  <span className="text-xs font-bold">Import JSON Backup</span>
-                  <span className="text-[10px] text-text-muted">Restore applications from a previous file</span>
-                  <input type="file" accept=".json" onChange={handleImportDatabase} className="hidden" />
+                <label className="btn-secondary text-xs p-3 flex flex-col items-center justify-center space-y-1.5 cursor-pointer font-bold">
+                  <RefreshCw className={`h-4 w-4 text-cyan-400 ${isImporting ? 'animate-spin' : ''}`} />
+                  <span>{isImporting ? 'Importing...' : 'Import Backup (JSON)'}</span>
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={handleImportDatabase}
+                    className="hidden"
+                  />
                 </label>
-              </div>
 
-              {/* Clear Database */}
-              <div className="pt-4 border-t flex items-center justify-between" style={{ borderColor: 'var(--border-subtle)' }}>
-                <div>
-                  <h4 className="text-xs font-bold text-text-danger">Danger Zone</h4>
-                  <p className="text-[11px] text-text-muted">Permanently delete all stored applications and history.</p>
-                </div>
                 <button
                   type="button"
                   onClick={() => setShowClearModal(true)}
-                  className="btn-secondary text-xs px-4 py-2 border-danger/40 text-danger hover:bg-danger/10"
+                  className="p-3 rounded-xl border flex flex-col items-center justify-center space-y-1.5 text-xs font-bold text-rose-400 hover:bg-rose-500/10 border-rose-500/30 transition-all cursor-pointer"
                 >
-                  <Trash2 size={13} className="mr-1.5" />
-                  <span>Clear All Records</span>
+                  <Trash2 className="h-4 w-4" />
+                  <span>Clear All Data</span>
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* ══════════════════════════════════════════════════════════════
+              TAB 5: ABOUT & UPDATES
+              ══════════════════════════════════════════════════════════════ */}
+          {activeSubTab === 'about' && (
+            <div className="space-y-6 animate-fade-in">
+              <div>
+                <h3 className="text-sm font-bold text-text-primary font-display flex items-center space-x-2">
+                  <Info className="h-4 w-4 text-sky-400" />
+                  <span>About JobFinder &amp; App Updates</span>
+                </h3>
+                <p className="text-[11px] text-text-muted mt-0.5">
+                  View installed version information, changelog, and check for new updates directly from GitHub.
+                </p>
+              </div>
+
+              {/* Version & Info Card */}
+              <div className="card p-5 rounded-2xl border space-y-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="h-12 w-12 rounded-2xl flex items-center justify-center font-black text-xl text-white shadow-md select-none" style={{ background: 'linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%)' }}>
+                      JF
+                    </div>
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <h4 className="text-base font-black text-text-primary font-display">JobFinder</h4>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                          {CURRENT_VERSION}
+                        </span>
+                      </div>
+                      <p className="text-xs text-text-muted mt-0.5">AI-Powered Job Application Tracker &amp; ATS Resume Studio</p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleCheckForUpdates}
+                    disabled={isCheckingUpdate}
+                    className="btn-primary text-xs px-4 py-2 font-bold flex items-center justify-center space-x-1.5 shrink-0 cursor-pointer shadow-md hover:scale-105 transition-all"
+                  >
+                    <RefreshCw size={13} className={isCheckingUpdate ? 'animate-spin' : ''} />
+                    <span>{isCheckingUpdate ? 'Checking...' : 'Check for Update'}</span>
+                  </button>
+                </div>
+
+                {/* Update Result Alert */}
+                {updateStatus && (
+                  <div 
+                    className="p-3.5 rounded-xl border text-xs font-semibold flex items-center justify-between gap-3 animate-fade-in"
+                    style={{
+                      background: updateStatus.isLatest ? 'rgba(16, 185, 129, 0.12)' : 'rgba(56, 189, 248, 0.15)',
+                      color: updateStatus.isLatest ? 'var(--status-success)' : 'var(--accent-cool)',
+                      borderColor: updateStatus.isLatest ? 'rgba(16, 185, 129, 0.25)' : 'rgba(56, 189, 248, 0.3)'
+                    }}
+                  >
+                    <div className="flex items-center space-x-2">
+                      {updateStatus.isLatest ? <CheckCircle2 size={16} className="shrink-0" /> : <Sparkles size={16} className="shrink-0" />}
+                      <span>
+                        {updateStatus.isLatest 
+                          ? `You are using the latest version of JobFinder (${CURRENT_VERSION}).`
+                          : `New version available! (${updateStatus.latestTag})`}
+                      </span>
+                    </div>
+
+                    <a
+                      href={updateStatus.releaseUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1 rounded-lg border text-xs font-bold flex items-center space-x-1 shrink-0 bg-surface hover:scale-105 transition-transform"
+                      style={{ borderColor: 'var(--border-subtle)' }}
+                    >
+                      <span>View Release</span>
+                      <ExternalLink size={11} />
+                    </a>
+                  </div>
+                )}
+
+                {/* Architecture Highlights */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+                  <div className="p-2.5 rounded-xl bg-surface-raised border" style={{ borderColor: 'var(--border-subtle)' }}>
+                    <span className="text-[9px] text-text-muted uppercase font-bold block">Frontend</span>
+                    <span className="text-xs font-bold text-text-primary">React 19 + Vite</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-surface-raised border" style={{ borderColor: 'var(--border-subtle)' }}>
+                    <span className="text-[9px] text-text-muted uppercase font-bold block">Mobile</span>
+                    <span className="text-xs font-bold text-text-primary">Capacitor Android</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-surface-raised border" style={{ borderColor: 'var(--border-subtle)' }}>
+                    <span className="text-[9px] text-text-muted uppercase font-bold block">Database</span>
+                    <span className="text-xs font-bold text-text-primary">Dexie IndexedDB</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-surface-raised border" style={{ borderColor: 'var(--border-subtle)' }}>
+                    <span className="text-[9px] text-text-muted uppercase font-bold block">AI Engine</span>
+                    <span className="text-xs font-bold text-text-primary">Multi-Provider</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* GitHub & Open Source Links */}
+              <div className="p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
+                <div>
+                  <h4 className="text-xs font-bold text-text-primary">Open Source Repository</h4>
+                  <p className="text-[10px] text-text-muted">Built with MIT license. Star or contribute on GitHub!</p>
+                </div>
+                <a
+                  href="https://github.com/Suvesh108/jobfinder"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-secondary text-xs px-4 py-2 flex items-center justify-center space-x-1.5 font-bold shrink-0"
+                >
+                  <Globe size={13} />
+                  <span>GitHub Repository</span>
+                  <ExternalLink size={11} />
+                </a>
               </div>
             </div>
           )}
@@ -700,15 +903,17 @@ export const SettingsView: React.FC = () => {
       </div>
 
       {/* Clear Database Confirmation Modal */}
-      <ConfirmModal
-        isOpen={showClearModal}
-        title="Clear All Applications?"
-        message="This action will permanently delete all stored applications, notes, and status histories. This cannot be undone."
-        confirmText="Clear All Data"
-        variant="danger"
-        onConfirm={handleClearDatabase}
-        onCancel={() => setShowClearModal(false)}
-      />
+      {showClearModal && (
+        <ConfirmModal
+          isOpen={showClearModal}
+          title="Clear Entire Database?"
+          message="Are you sure you want to delete all job applications, status histories, and notes? This action is permanent and cannot be undone."
+          confirmText="Yes, Delete Everything"
+          variant="danger"
+          onConfirm={handleClearDatabase}
+          onCancel={() => setShowClearModal(false)}
+        />
+      )}
     </div>
   );
 };
