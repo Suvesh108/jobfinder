@@ -42,7 +42,7 @@ export const parseJobUrl = (url: string): ParsedJobInfo => {
     if (host.includes('indeed')) {
       result.sourceSite = 'Indeed India';
     } else if (host.includes('naukri')) {
-      result.sourceSite = 'Naukri';
+      result.sourceSite = 'Naukri.com';
     } else if (host.includes('apna.co')) {
       result.sourceSite = 'Apna';
     } else if (host.includes('jobhai')) {

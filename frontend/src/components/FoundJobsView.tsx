@@ -1,10 +1,4 @@
 
-const normalizeSource = (src?: string): string => {
-  if (!src) return 'Unknown';
-  if (src.toLowerCase() === 'naukri.com' || src.toLowerCase() === 'naukri') return 'Naukri';
-  return src;
-};
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type JobApplication, type JobStatus } from '../db/schema';
@@ -34,6 +28,12 @@ import {
   ChevronDown,
   Check
 } from 'lucide-react';
+
+const normalizeSource = (src?: string): string => {
+  if (!src) return 'Unknown';
+  if (src.toLowerCase() === 'naukri.com' || src.toLowerCase() === 'naukri') return 'Naukri';
+  return src;
+};
 
 const PAGE_SIZE = 12;
 
