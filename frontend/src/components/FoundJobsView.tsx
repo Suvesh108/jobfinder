@@ -72,13 +72,17 @@ export const FoundJobsView: React.FC = () => {
   const portalDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       if (portalDropdownRef.current && !portalDropdownRef.current.contains(event.target as Node)) {
         setIsPortalDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, []);
 
 
@@ -250,7 +254,7 @@ export const FoundJobsView: React.FC = () => {
 
       {/* ── Filter Bar & Expiry Controls ── */}
       {foundJobs.length > 0 && (
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-3 rounded-2xl border" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-3 rounded-2xl border relative z-40 overflow-visible" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
           {/* Quick Search Input */}
           <div className="relative flex-1 min-w-[200px]">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
@@ -264,12 +268,15 @@ export const FoundJobsView: React.FC = () => {
             />
           </div>
 
-          <div className="flex items-center space-x-2 overflow-x-auto pb-1 sm:pb-0">
+          <div className="flex items-center flex-wrap gap-2 overflow-visible relative">
             {/* Custom Styled Portal Filter Dropdown */}
             <div className="relative shrink-0" ref={portalDropdownRef}>
               <button
                 type="button"
-                onClick={() => setIsPortalDropdownOpen(!isPortalDropdownOpen)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsPortalDropdownOpen((prev) => !prev);
+                }}
                 className="text-xs px-3 py-1.5 rounded-xl border flex items-center space-x-2 bg-surface text-text-primary hover:border-cyan-500/50 transition-all cursor-pointer shadow-xs select-none"
                 style={{ 
                   borderColor: isPortalDropdownOpen ? 'var(--status-info)' : 'var(--border-subtle)',
@@ -288,11 +295,12 @@ export const FoundJobsView: React.FC = () => {
 
               {isPortalDropdownOpen && (
                 <div 
-                  className="absolute right-0 top-full mt-1.5 w-56 rounded-2xl border shadow-2xl p-1.5 z-50 animate-fade-in backdrop-blur-xl space-y-1"
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute left-0 sm:left-auto sm:right-0 top-full mt-1.5 w-60 rounded-2xl border shadow-2xl p-1.5 z-[1000] animate-fade-in space-y-1"
                   style={{ 
                     background: 'var(--bg-card)', 
                     borderColor: 'var(--border-subtle)',
-                    boxShadow: '0 16px 36px -4px rgba(0, 0, 0, 0.5)'
+                    boxShadow: '0 20px 45px -4px rgba(0, 0, 0, 0.75)'
                   }}
                 >
                   {/* Option: All Portals */}
