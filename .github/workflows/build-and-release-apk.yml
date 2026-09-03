@@ -45,9 +45,13 @@ jobs:
       - name: Make Gradle Wrapper Executable
         run: chmod +x frontend/android/gradlew
 
-      - name: Sync Capacitor Android
-        working-directory: frontend
-        run: npx cap sync android
+      - name: Copy Web Assets to Android (replaces npx cap sync)
+        run: |
+          ASSETS_DIR="frontend/android/app/src/main/assets"
+          mkdir -p "$ASSETS_DIR/public"
+          rsync -a --delete frontend/dist/ "$ASSETS_DIR/public/"
+          printf '{"appId":"com.jobfinder.app","appName":"JobFinder","webDir":"dist","server":{"androidScheme":"https"}}' > "$ASSETS_DIR/capacitor.config.json"
+          printf '[]' > "$ASSETS_DIR/capacitor.plugins.json"
 
       - name: Build Android Debug APK
         working-directory: frontend/android
@@ -70,18 +74,27 @@ jobs:
         with:
           name: JobFinder ${{ github.ref_name }}
           body: |
-            * **Android APK (Direct Install)**: `JobFinder-${{ github.ref_name }}.apk`
-            * **Desktop / Web Application**: `index.html` (PWA Offline Ready)
+            ## 🚀 JobFinder ${{ github.ref_name }} — Autonomous Multi-Portal Job Finder & ATS Resume Studio
 
-            ### ✨ Features & Improvements in ${{ github.ref_name }}
+            📱 **Download & install** `JobFinder-${{ github.ref_name }}.apk` directly on Android.
 
-            * 📱 **Dedicated Native Mobile UX**: Built specifically for Android touch displays with centered header, bottom glassmorphic navigation dock, and zero-overflow layout.
-            * 🔍 **Unified Luxury Job Search Engine**: Parallel aggregator across LinkedIn, Naukri, Indeed, Glassdoor, Internshala, Shine, Apna, Freshersworld & Instahyre.
-            * 🤖 **Intelligent AI Chat Copilot**: Drag-and-drop resume tailoring with multi-provider AI support (Google Gemini, OpenRouter, NVIDIA NIM, Groq, DeepSeek).
-            * 📄 **Jake's ATS Resume Generator**: Real-time ATS single-column resume with interactive in-browser LaTeX (`.tex`) code editor and instant PDF export.
-            * 📋 **Application Pipeline Tracker**: Kanban and list views with follow-up notifications, Notion database synchronization, and CSV export.
-            * 🛡️ **Defensive Security Hardening**: OWASP Top 10 compliance with LaTeX syntax injection escaping, strict schema sanitization, and reverse tabnabbing protection.
-            * 💾 **Full Offline Persistence**: Zero-cloud-dependency local database powered by Dexie.js (IndexedDB) with backup export & import.
+            ---
+
+            ### ✨ What's New in v2.0.0
+
+            * 🔍 **9-Portal Parallel Search Engine**: Naukri, LinkedIn, Indeed, Internshala, Shine, Freshersworld, Apna, Glassdoor & Instahyre — all in one concurrent scan with 100% verified real URLs (zero broken links).
+            * 📄 **Jake's ATS Resume Studio**: Real-time A4 paper preview + in-browser LaTeX editor. Copy to Overleaf, download `.tex`, or export PDF directly.
+            * 🤖 **AI Chat Copilot**: Drag-and-drop job cards onto the copilot to instantly tailor bullets. Supports Google Gemini, Groq, DeepSeek, OpenRouter, NVIDIA NIM & OpenAI.
+            * 📱 **Native Android Build**: Touch-optimized UI with bottom glassmorphic dock, haptic feedback, and in-app OTA update checker.
+            * 🎨 **Dark OLED Brand Icon**: New high-contrast black background with white briefcase & electric cyan search lens logo.
+            * 🔒 **Zero Pre-Seeded Data**: Clean blank profile — no personal data from the developer shipped in the template.
+            * 💾 **100% Local IndexedDB**: All your jobs, applications, and profile data stay on-device. No cloud. No tracking.
+            * 📋 **Kanban Application Tracker**: Full pipeline across Wishlist → Applied → Interview → Offer → Rejected.
+
+            ---
+
+            ### 📦 Assets
+            * `JobFinder-${{ github.ref_name }}.apk` — Android direct install package
           draft: false
           prerelease: false
           files: |
