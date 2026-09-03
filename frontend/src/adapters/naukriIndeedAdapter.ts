@@ -226,8 +226,8 @@ const fetchFromJobScrap = async (
     clearTimeout(timeoutId);
   }
 
-  // Instant Fallback if backend offline
-  return mockFallback ? mockFallback(query, location) : [];
+  // Never return fake broken 404 mock links
+  return [];
 };
 
 export const instahyreAdapter: JobAdapter = {
