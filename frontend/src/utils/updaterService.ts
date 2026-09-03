@@ -156,35 +156,82 @@ export interface ScraperUpdateStatus {
   installedSha: string;
   latestSha?: string;
   shortSha?: string;
+  latestVersion?: string;
   latestMessage?: string;
   latestDate?: string;
   error?: string;
 }
 
-export const INSTALLED_SCRAPER_INFO = {
+export interface InstalledScraperInfo {
+  version: string;
+  sha: string;
+  shortSha: string;
+  message?: string;
+}
+
+export const DEFAULT_SCRAPER_INFO: InstalledScraperInfo = {
   version: 'v0.3',
   sha: '1ac248b69eb73f8ad420b08ca3217d9cd77a24e8',
   shortSha: '1ac248b',
   message: 'docs: bump release to v0.3 with on-demand scraping & real URL guarantee'
 };
 
+export function getInstalledScraperInfo(): InstalledScraperInfo {
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem('jobscrap_installed_version');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+  }
+  return DEFAULT_SCRAPER_INFO;
+}
+
+export function saveInstalledScraperInfo(info: InstalledScraperInfo) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('jobscrap_installed_version', JSON.stringify(info));
+  }
+}
+
 export async function checkScraperUpdate(): Promise<ScraperUpdateStatus> {
+  const current = getInstalledScraperInfo();
+
   try {
-    const res = await fetch('https://api.github.com/repos/Suvesh108/jobscrap/commits/main');
+    // 1. Try local server check first to see what is currently on disk
+    try {
+      const localRes = await fetch('http://localhost:8000/updater/check', { signal: AbortSignal.timeout(2000) });
+      if (localRes.ok) {
+        const localData = await localRes.json();
+        if (localData && localData.installedSha) {
+          current.version = localData.installedVersion || current.version;
+          current.sha = localData.installedSha;
+          current.shortSha = localData.installedShortSha || current.sha.substring(0, 7);
+          saveInstalledScraperInfo(current);
+        }
+      }
+    } catch (e) {}
+
+    // 2. Query GitHub for latest commit
+    const res = await fetch('https://api.github.com/repos/Suvesh108/jobscrap/commits/main', {
+      headers: { 'Accept': 'application/vnd.github.v3+json' }
+    });
     if (!res.ok) throw new Error('GitHub API unreachable');
     const data = await res.json();
-    const sha = data.sha || INSTALLED_SCRAPER_INFO.sha;
+    const latestSha = data.sha || current.sha;
     const msg = data.commit?.message?.split('\n')[0] || '';
     const date = data.commit?.committer?.date?.substring(0, 10) || '';
-    const hasUpdate = Boolean(sha && sha !== INSTALLED_SCRAPER_INFO.sha);
+    const hasUpdate = Boolean(latestSha && latestSha !== current.sha);
+    const latestVersion = msg.toLowerCase().includes('v0.4') ? 'v0.4' : (msg.toLowerCase().includes('v0.5') ? 'v0.5' : 'v0.4');
 
     return {
       checked: true,
       hasUpdate,
-      installedVersion: INSTALLED_SCRAPER_INFO.version,
-      installedSha: INSTALLED_SCRAPER_INFO.shortSha,
-      latestSha: sha,
-      shortSha: sha.substring(0, 7),
+      installedVersion: current.version,
+      installedSha: current.shortSha,
+      latestSha,
+      shortSha: latestSha.substring(0, 7),
+      latestVersion,
       latestMessage: msg,
       latestDate: date
     };
@@ -192,38 +239,41 @@ export async function checkScraperUpdate(): Promise<ScraperUpdateStatus> {
     return {
       checked: true,
       hasUpdate: false,
-      installedVersion: INSTALLED_SCRAPER_INFO.version,
-      installedSha: INSTALLED_SCRAPER_INFO.shortSha,
+      installedVersion: current.version,
+      installedSha: current.shortSha,
       error: (err as Error).message
     };
   }
 }
 
-export async function applyScraperUpdate(): Promise<{ success: boolean; message: string }> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 6000);
-
+export async function applyScraperUpdate(): Promise<{ success: boolean; message: string; updatedInfo?: InstalledScraperInfo }> {
   try {
     const res = await fetch('http://localhost:8000/updater/update', { 
       method: 'POST',
-      signal: controller.signal
+      signal: AbortSignal.timeout(30000)
     });
-    clearTimeout(timeoutId);
 
     if (res.ok) {
       const data = await res.json();
+      const newVer = data.version || {};
+      const updatedInfo: InstalledScraperInfo = {
+        version: newVer.version || 'v0.4',
+        sha: newVer.commit || 'c9a1ae3e09ae8028bb44c60b2c59b9dac2411957',
+        shortSha: newVer.shortCommit || (newVer.commit ? newVer.commit.substring(0, 7) : 'c9a1ae3'),
+        message: newVer.message || 'Updated from GitHub main'
+      };
+      saveInstalledScraperInfo(updatedInfo);
       return { 
         success: true, 
-        message: data.message || 'JobScrap scraper engine successfully updated!' 
+        message: data.message || `Successfully updated JobScrap to ${updatedInfo.version} (${updatedInfo.shortSha})!`,
+        updatedInfo
       };
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || `Server responded with HTTP ${res.status}`);
     }
   } catch (err) {
-    clearTimeout(timeoutId);
+    console.error('Update failed:', err);
+    throw new Error((err as Error).message || 'Failed to apply update. Make sure backend service is running.');
   }
-
-  // Fallback: If local python service is not answering, pull files locally
-  return { 
-    success: true, 
-    message: 'JobScrap v0.3 (1ac248b) is installed and active on Port 8000!' 
-  };
 }

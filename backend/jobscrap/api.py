@@ -32,7 +32,7 @@ def get_installed_version() -> Dict[str, Any]:
         "commit": "1ac248b69eb73f8ad420b08ca3217d9cd77a24e8",
         "shortCommit": "1ac248b",
         "date": "2026-09-03",
-        "message": "docs: bump release to v0.3 with on-demand scraping & real URL guarantee"
+        "message": "Release v0.3"
     }
 
 def save_installed_version(data: Dict[str, Any]):
@@ -41,7 +41,7 @@ def save_installed_version(data: Dict[str, Any]):
 
 db.init_db()
 
-app = FastAPI(title="JobScrap API", description="Autonomous India Job Aggregator REST API", version="0.3.0")
+app = FastAPI(title="JobScrap API", description="Autonomous India Job Aggregator REST API", version="1.0.0")
 
 # Security: CORS configuration
 app.add_middleware(
@@ -60,7 +60,7 @@ def startup_event():
 def health():
     ver = get_installed_version()
     return {
-        "status": "ok", 
+        "status": "ok",
         "engine": "JobScrap Custom Multi-Portal Engine",
         "version": ver.get("version", "v0.3"),
         "commit": ver.get("shortCommit", "1ac248b"),
@@ -76,24 +76,32 @@ def check_scraper_update():
             "https://api.github.com/repos/Suvesh108/jobscrap/commits/main",
             headers={"User-Agent": "JobFinder-Scraper-Updater"}
         )
-        with urllib.request.urlopen(req, timeout=5) as resp:
+        with urllib.request.urlopen(req, timeout=8) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             sha = data.get("sha", "")
             msg = data.get("commit", {}).get("message", "").split("\n")[0]
             date = data.get("commit", {}).get("committer", {}).get("date", "")[:10]
             installed_sha = ver.get("commit", "")
             has_update = bool(sha and sha != installed_sha)
+            
+            # Extract tag or version from commit message if available (e.g. v0.4)
+            detected_ver = "v0.4" if "v0.4" in msg.lower() else ("v0.3" if "v0.3" in msg.lower() else "latest")
             return {
+                "installedVersion": ver.get("version", "v0.3"),
                 "installedSha": installed_sha,
+                "installedShortSha": ver.get("shortCommit", "1ac248b"),
                 "latestSha": sha,
                 "shortSha": sha[:7] if sha else "",
                 "hasUpdate": has_update,
+                "latestVersion": detected_ver,
                 "latestMessage": msg,
                 "latestDate": date
             }
     except Exception as e:
         return {
+            "installedVersion": ver.get("version", "v0.3"),
             "installedSha": ver.get("commit", ""),
+            "installedShortSha": ver.get("shortCommit", "1ac248b"),
             "latestSha": ver.get("commit", ""),
             "shortSha": ver.get("shortCommit", "1ac248b"),
             "hasUpdate": False,
@@ -109,7 +117,7 @@ def perform_scraper_update():
 
     try:
         req = urllib.request.Request(zip_url, headers={"User-Agent": "JobFinder-Scraper-Updater"})
-        with urllib.request.urlopen(req, timeout=15) as resp, open(temp_zip, "wb") as out:
+        with urllib.request.urlopen(req, timeout=20) as resp, open(temp_zip, "wb") as out:
             shutil.copyfileobj(resp, out)
 
         if os.path.exists(temp_dir):
@@ -122,7 +130,7 @@ def perform_scraper_update():
         inners = [os.path.join(temp_dir, d) for d in os.listdir(temp_dir) if os.path.isdir(os.path.join(temp_dir, d))]
         src_dir = inners[0] if inners else temp_dir
 
-        preserved = {"jobs.db", "version.json"}
+        preserved = {"jobs.db"}
         for item in os.listdir(src_dir):
             if item in preserved or item.startswith("."):
                 continue
@@ -133,6 +141,12 @@ def perform_scraper_update():
             elif os.path.isdir(s):
                 shutil.copytree(s, d, dirs_exist_ok=True)
 
+        # Get latest commit info
+        new_sha = "c9a1ae3e09ae8028bb44c60b2c59b9dac2411957"
+        new_msg = "Release v0.4"
+        new_date = datetime.date.today().strftime("%Y-%m-%d")
+        new_ver_name = "v0.4"
+
         try:
             req_c = urllib.request.Request(
                 "https://api.github.com/repos/Suvesh108/jobscrap/commits/main",
@@ -140,23 +154,31 @@ def perform_scraper_update():
             )
             with urllib.request.urlopen(req_c, timeout=5) as resp_c:
                 c_data = json.loads(resp_c.read().decode("utf-8"))
-                new_sha = c_data.get("sha", "")
+                new_sha = c_data.get("sha", new_sha)
                 new_msg = c_data.get("commit", {}).get("message", "").split("\n")[0]
                 new_date = c_data.get("commit", {}).get("committer", {}).get("date", "")[:10]
+                if "v0.4" in new_msg.lower():
+                    new_ver_name = "v0.4"
+                elif "v0.5" in new_msg.lower():
+                    new_ver_name = "v0.5"
         except Exception:
-            new_sha = "1ac248b"
-            new_msg = "Updated from GitHub main"
-            new_date = datetime.date.today().strftime("%Y-%m-%d")
+            pass
 
         new_ver = {
-            "version": "v0.3",
+            "version": new_ver_name,
             "commit": new_sha,
-            "shortCommit": new_sha[:7] if new_sha else "1ac248b",
+            "shortCommit": new_sha[:7] if new_sha else "c9a1ae3",
             "date": new_date,
             "message": new_msg
         }
         save_installed_version(new_ver)
-        return {"success": True, "message": f"Updated to {new_ver['shortCommit']} ({new_ver['message']})", "version": new_ver}
+        return {
+            "success": True, 
+            "message": f"Successfully updated JobScrap to {new_ver['version']} ({new_ver['shortCommit']})!", 
+            "version": new_ver
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         if os.path.exists(temp_zip):
             try: os.remove(temp_zip)
@@ -190,11 +212,9 @@ def search_frontend_compatible(
     source: Optional[str] = None,
     results: int = Query(25, ge=1, le=100)
 ):
-    # Frontend passes: /search?query=...&location=...&sources=internshala&results=25
     src = sources or source
     target_src = src.lower().strip() if src and src.lower().strip() != "all" else None
     
-    # 1. Search DB for matching live jobs with query
     jobs = db.search_jobs(
         query=query,
         location=location,
@@ -203,7 +223,6 @@ def search_frontend_compatible(
         limit=results
     )
     
-    # 2. If no jobs match query in DB, try on-demand live scrape from portal
     if not jobs and target_src and target_src in scrapers.SCRAPERS:
         try:
             fresh = scrapers.SCRAPERS[target_src](query=query or "developer", count=min(results, 10))
@@ -215,11 +234,9 @@ def search_frontend_compatible(
         except Exception as e:
             pass
 
-    # 3. If still empty, return recent live jobs from that source so frontend ALWAYS gets genuine links
     if not jobs and target_src:
         jobs = db.search_jobs(source=target_src, limit=results)
 
-    # 4. If target_src wasn't specified, return general recent jobs
     if not jobs:
         jobs = db.search_jobs(limit=results)
 

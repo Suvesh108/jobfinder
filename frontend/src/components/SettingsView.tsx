@@ -1,4 +1,4 @@
-import { fetchLatestRelease, downloadApkInternally, type ReleaseInfo, checkScraperUpdate, applyScraperUpdate, type ScraperUpdateStatus, INSTALLED_SCRAPER_INFO } from '../utils/updaterService';
+import { fetchLatestRelease, downloadApkInternally, type ReleaseInfo, checkScraperUpdate, applyScraperUpdate, type ScraperUpdateStatus, getInstalledScraperInfo, type InstalledScraperInfo } from '../utils/updaterService';
 import React, { useState, useEffect } from 'react';
 import { db, getUserProfile, saveUserProfile, type JobApplication, type UserProfile } from '../db/schema';
 import { useUIStore, type AppTheme } from '../store/useUIStore';
@@ -55,6 +55,7 @@ export const SettingsView: React.FC = () => {
   const [jobspyStatus, setJobspyStatus] = useState<'checking' | 'running' | 'offline'>('checking');
   // Scraper Check for Update State
   const [scraperUpdate, setScraperUpdate] = useState<ScraperUpdateStatus | null>(null);
+  const [installedScraper, setInstalledScraper] = useState<InstalledScraperInfo>(getInstalledScraperInfo);
   const [isCheckingScraper, setIsCheckingScraper] = useState(false);
   const [isUpdatingScraper, setIsUpdatingScraper] = useState(false);
   const [scraperUpdateNotice, setScraperUpdateNotice] = useState<string | null>(null);
@@ -234,17 +235,19 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  const handleApplyScraperUpdate = async () => {
+    const handleApplyScraperUpdate = async () => {
     setIsUpdatingScraper(true);
     setScraperUpdateNotice(null);
     try {
       const res = await applyScraperUpdate();
       setScraperUpdateNotice(res.message);
+      if (res.updatedInfo) {
+        setInstalledScraper(res.updatedInfo);
+      }
       const refreshed = await checkScraperUpdate();
       setScraperUpdate(refreshed);
     } catch (err) {
-      setScraperUpdateNotice((err as Error).message || 'Scraper update completed.');
-      setScraperUpdate((prev) => prev ? { ...prev, hasUpdate: false } : null);
+      setScraperUpdateNotice((err as Error).message || 'Scraper update failed.');
     } finally {
       setIsUpdatingScraper(false);
     }
@@ -998,7 +1001,7 @@ export const SettingsView: React.FC = () => {
                       <div className="flex items-center space-x-2">
                         <h4 className="text-sm font-bold text-text-primary font-display">JobScrap Custom Scraping Engine</h4>
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                          {INSTALLED_SCRAPER_INFO.version} ({INSTALLED_SCRAPER_INFO.shortSha})
+                          {installedScraper.version} ({installedScraper.shortSha})
                         </span>
                       </div>
                       <p className="text-xs text-text-muted mt-0.5">
