@@ -65,7 +65,7 @@ export const useUIStore = create<UIStore>()(
         dateEnd: '',
       },
       setFilters: (newFilters) => 
-        set((state) => ({ filters: { ...state.filters, ...newFilters } })),
+        set((state: UIStore) => ({ filters: { ...state.filters, ...newFilters } })),
       resetFilters: () => 
         set({
           filters: {
@@ -84,9 +84,9 @@ export const useUIStore = create<UIStore>()(
       
       enabledAdapters: ['instahyre', 'naukri', 'internshala', 'shine', 'freshersworld', 'apna', 'indeed', 'linkedin', 'glassdoor'],
       toggleAdapter: (id) => 
-        set((state) => {
+        set((state: UIStore) => {
           const enabled = state.enabledAdapters.includes(id)
-            ? state.enabledAdapters.filter((item) => item !== id)
+            ? state.enabledAdapters.filter((item: string) => item !== id)
             : [...state.enabledAdapters, id];
           return { enabledAdapters: enabled };
         }),
@@ -94,6 +94,18 @@ export const useUIStore = create<UIStore>()(
     }),
     {
       name: 'job-tracker-ui-store',
+      version: 2,
+      merge: (persistedState: any, currentState: any) => {
+        const allAdapters = ['instahyre', 'naukri', 'internshala', 'shine', 'freshersworld', 'apna', 'indeed', 'linkedin', 'glassdoor'];
+        const saved = (persistedState as any)?.enabledAdapters || [];
+        // Combine any saved adapters with all newly added platforms
+        const combined = Array.from(new Set([...saved, ...allAdapters]));
+        return {
+          ...currentState,
+          ...(persistedState as any),
+          enabledAdapters: combined,
+        };
+      },
       partialize: (state) => ({
         activeTab: state.activeTab,
         theme: state.theme,

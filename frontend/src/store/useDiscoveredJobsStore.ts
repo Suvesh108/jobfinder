@@ -28,9 +28,9 @@ export const useDiscoveredJobsStore = create<DiscoveredJobsStore>()(
 
       setFoundJobs: (jobs) => set({ foundJobs: jobs }),
       appendFoundJobs: (newJobs) => 
-        set((state) => {
-          const existingKeys = new Set(state.foundJobs.map(j => `${j.company.toLowerCase()}__${j.title.toLowerCase()}`));
-          const uniqueNew = newJobs.filter(j => !existingKeys.has(`${j.company.toLowerCase()}__${j.title.toLowerCase()}`));
+        set((state: DiscoveredJobsStore) => {
+          const existingKeys = new Set(state.foundJobs.map((j: JobListing) => `${j.company.toLowerCase()}__${j.title.toLowerCase()}`));
+          const uniqueNew = newJobs.filter((j: JobListing) => !existingKeys.has(`${j.company.toLowerCase()}__${j.title.toLowerCase()}`));
           return { foundJobs: [...uniqueNew, ...state.foundJobs] };
         }),
       clearFoundJobs: () => set({ foundJobs: [] }),
@@ -40,6 +40,15 @@ export const useDiscoveredJobsStore = create<DiscoveredJobsStore>()(
     }),
     {
       name: 'jobfinder-discovered-jobs',
+      merge: (persistedState: any, currentState: any) => {
+        const raw = (persistedState as any)?.foundJobs || [];
+        const cleaned = raw.filter((j: any) => j && j.url && !j.url.includes('mock-'));
+        return {
+          ...currentState,
+          ...(persistedState as any),
+          foundJobs: cleaned,
+        };
+      },
       partialize: (state) => ({
         foundJobs: state.foundJobs,
         lastSearchQuery: state.lastSearchQuery,

@@ -817,7 +817,9 @@ export const SearchView: React.FC = () => {
       return;
     }
 
-    const activeAdapters = adapters.filter(a => enabledAdapters.includes(a.id));
+    const allAdapterIds = adapters.map(a => a.id);
+    const effectiveEnabled = (enabledAdapters && enabledAdapters.length >= 7) ? enabledAdapters : allAdapterIds;
+    const activeAdapters = adapters.filter(a => effectiveEnabled.includes(a.id));
     if (activeAdapters.length === 0) {
       alert('Please enable at least one Search Source in the Settings tab to search for jobs.');
       return;
@@ -852,101 +854,64 @@ export const SearchView: React.FC = () => {
 
     // Per-role per-adapter parallel streaming execution
     const expandedQueries = selectedRoles.flatMap(r => expandRoleToQueries(r));
-    const totalTasks = activeAdapters.length * expandedQueries.length;
+    const tasks = activeAdapters.flatMap(adapter => 
+      expandedQueries.map(query => ({ adapter, query }))
+    );
+    const totalTasks = tasks.length;
     let completedTasks = 0;
     const counts: Record<string, number> = {};
 
-    activeAdapters.forEach(async (adapter) => {
-      if (isAbortedRef.current || controller.signal.aborted) return;
-      let adapterTotal = 0;
+    const taskPromises = tasks.map(async ({ adapter, query }) => {
+      if (isAbortedRef.current || controller.signal.aborted) return [];
+      const roleKey = `${adapter.id}:${query.trim().toLowerCase()}:${locQuery.trim().toLowerCase()}:${postedAfter}`;
       
-      const rolePromises = expandedQueries.map(async (query) => {
-        if (isAbortedRef.current || controller.signal.aborted) return [];
-        const roleKey = `${adapter.id}:${query.trim().toLowerCase()}:${locQuery.trim().toLowerCase()}:${postedAfter}`;
-        
-        let fetched: JobListing[] = [];
-        if (searchCacheRef.current.has(roleKey)) {
-          fetched = searchCacheRef.current.get(roleKey) || [];
-        } else {
-          try {
-            fetched = await adapter.fetchJobs(query.trim(), locQuery.trim(), postedAfter);
-            if (isAbortedRef.current || controller.signal.aborted) return [];
-            if (Array.isArray(fetched) && fetched.length > 0) {
-              searchCacheRef.current.set(roleKey, fetched);
-            }
-          } catch (err) {
-            if (isAbortedRef.current || controller.signal.aborted) return [];
-            console.error(`[Fetch Error] ${adapter.name} (${query}):`, err);
-            fetched = [];
+      let fetched: JobListing[] = [];
+      if (searchCacheRef.current.has(roleKey)) {
+        fetched = searchCacheRef.current.get(roleKey) || [];
+      } else {
+        try {
+          fetched = await adapter.fetchJobs(query.trim(), locQuery.trim(), postedAfter);
+          if (isAbortedRef.current || controller.signal.aborted) return [];
+          if (Array.isArray(fetched) && fetched.length > 0) {
+            searchCacheRef.current.set(roleKey, fetched);
           }
-        }
-
-        if (isAbortedRef.current || controller.signal.aborted) return [];
-
-        completedTasks++;
-        const pct = Math.min(99, Math.round((completedTasks / totalTasks) * 100));
-        setSearchProgress(pct);
-        useDiscoveredJobsStore.getState().setSearchProgress(pct);
-
-        if (fetched.length > 0 && !isAbortedRef.current && !controller.signal.aborted) {
-          adapterTotal += fetched.length;
-          counts[adapter.name] = adapterTotal;
-          setSourceCounts({ ...counts });
-
-          const updatedRaw = [...rawListingsRef.current, ...fetched];
-          rawListingsRef.current = updatedRaw;
-          setRawListings(updatedRaw);
-        }
-
-        return fetched;
-      });
-
-      await Promise.allSettled(rolePromises);
-
-      if (isAbortedRef.current || controller.signal.aborted) return;
-
-      if (completedTasks >= totalTasks) {
-        if (!isAbortedRef.current && !controller.signal.aborted) {
-          if (rawListingsRef.current.length === 0) {
-            const capLoc = locQuery.trim()
-              ? locQuery.trim().charAt(0).toUpperCase() + locQuery.trim().slice(1)
-              : 'India (Remote)';
-
-            const fallbackJobs = selectedRoles.flatMap((role, ri) =>
-              activeAdapters.map((adapter, ai) => {
-                const companies = [
-                  'Tata Consultancy Services (TCS)', 'Infosys', 'Wipro', 'Zepto',
-                  'Groww', 'Tech Mahindra', 'Cognizant', 'HCL Technologies',
-                  'Swiggy', 'Razorpay', 'Jio Platforms',
-                ];
-                const idx = ri * activeAdapters.length + ai;
-                const company = companies[idx % companies.length];
-                const capRole = role.charAt(0).toUpperCase() + role.slice(1);
-                return {
-                  title: `${capRole} Specialist`,
-                  company,
-                  location: capLoc,
-                  salary: idx % 2 === 0 ? '₹8 - 14 LPA' : '₹65,000 / month',
-                  url: `https://www.${adapter.id}.com/job/mock-${idx}-${Date.now()}`,
-                  source: adapter.name,
-                  postedDate: new Date(Date.now() - idx * 86400000).toISOString().split('T')[0],
-                  description: `Exciting opening for a ${capRole} professional at ${company}. Required: ${capRole}, modern tooling, Git, and teamwork skills.`,
-                };
-              })
-            );
-            rawListingsRef.current = fallbackJobs;
-            setRawListings(fallbackJobs);
-          }
-          setSearchProgress(100);
-          setIsLoading(false);
-          setLoadingPhase('Search completed successfully.');
-          const finalDeduped = dedupeJobs(rawListingsRef.current);
-          useDiscoveredJobsStore.getState().setFoundJobs(finalDeduped);
-          useDiscoveredJobsStore.getState().setLastSearch(selectedRoles.join(', '), locQuery);
-          useDiscoveredJobsStore.getState().setIsSearching(false);
+        } catch (err) {
+          if (isAbortedRef.current || controller.signal.aborted) return [];
+          console.error(`[Fetch Error] ${adapter.name} (${query}):`, err);
+          fetched = [];
         }
       }
+
+      if (isAbortedRef.current || controller.signal.aborted) return [];
+
+      completedTasks++;
+      const pct = Math.min(99, Math.round((completedTasks / totalTasks) * 100));
+      setSearchProgress(pct);
+      useDiscoveredJobsStore.getState().setSearchProgress(pct);
+
+      if (fetched.length > 0 && !isAbortedRef.current && !controller.signal.aborted) {
+        counts[adapter.name] = (counts[adapter.name] || 0) + fetched.length;
+        setSourceCounts({ ...counts });
+
+        const updatedRaw = [...rawListingsRef.current, ...fetched];
+        rawListingsRef.current = updatedRaw;
+        setRawListings(updatedRaw);
+      }
+
+      return fetched;
     });
+
+    await Promise.allSettled(taskPromises);
+
+    if (!isAbortedRef.current && !controller.signal.aborted) {
+      setSearchProgress(100);
+      setIsLoading(false);
+      setLoadingPhase('Search completed successfully.');
+      const finalDeduped = dedupeJobs(rawListingsRef.current);
+      useDiscoveredJobsStore.getState().setFoundJobs(finalDeduped);
+      useDiscoveredJobsStore.getState().setLastSearch(selectedRoles.join(', '), locQuery);
+      useDiscoveredJobsStore.getState().setIsSearching(false);
+    }
   };
 
   // handleSaveToTracker is managed in FoundJobsView
