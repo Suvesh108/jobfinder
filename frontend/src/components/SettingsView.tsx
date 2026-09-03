@@ -1,4 +1,4 @@
-import { fetchLatestRelease, fetchJobSpyVersion, downloadApkInternally, type ReleaseInfo } from '../utils/updaterService';
+import { fetchLatestRelease, fetchJobScrapVersion, downloadApkInternally, type ReleaseInfo } from '../utils/updaterService';
 import React, { useState, useEffect } from 'react';
 import { db, getUserProfile, saveUserProfile, type JobApplication, type UserProfile } from '../db/schema';
 import { useUIStore, type AppTheme } from '../store/useUIStore';
@@ -81,7 +81,7 @@ export const SettingsView: React.FC = () => {
   const [downloadMb, setDownloadMb] = useState('');
   const [downloadDone, setDownloadDone] = useState(false);
 
-  // JobSpy Engine Updater State
+  // JobScrap Engine Updater State
   const [jobspyInfo, setJobspyInfo] = useState<{ installed: string; latest: string; isLatest: boolean } | null>(null);
   const [isCheckingJobspy, setIsCheckingJobspy] = useState(false);
   const [jobspyUpdateSuccess, setJobspyUpdateSuccess] = useState(false);
@@ -97,7 +97,7 @@ export const SettingsView: React.FC = () => {
       setAiModel(p.aiModel || '');
     });
 
-    // Check JobSpy Backend
+    // Check JobScrap Backend
     const pythonUrl = (import.meta.env.VITE_PYTHON_BACKEND_URL as string)?.replace(/\/+$/, '') || 'https://jobfinder-xgb9.onrender.com';
     fetch(`${pythonUrl}/health`)
       .then(res => res.ok ? setJobspyStatus('running') : setJobspyStatus('offline'))
@@ -219,11 +219,11 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  const handleCheckJobSpy = async () => {
+  const handleCheckJobScrap = async () => {
     setIsCheckingJobspy(true);
     setJobspyUpdateSuccess(false);
     try {
-      const info = await fetchJobSpyVersion();
+      const info = await fetchJobScrapVersion();
       setJobspyInfo(info);
       setJobspyUpdateSuccess(true);
       setTimeout(() => setJobspyUpdateSuccess(false), 3000);
@@ -323,7 +323,7 @@ export const SettingsView: React.FC = () => {
 
   const SUB_TABS = [
     { id: 'ai', label: 'AI Providers & API Keys', icon: Sparkles, color: 'text-cyan-400' },
-    { id: 'scrapers', label: 'JobSpy Scrapers', icon: Sliders, color: 'text-indigo-400' },
+    { id: 'scrapers', label: 'JobScrap Scrapers', icon: Sliders, color: 'text-indigo-400' },
     { id: 'preferences', label: 'Preferences & Theme', icon: Palette, color: 'text-purple-400' },
     { id: 'database', label: 'Database & Backups', icon: Database, color: 'text-emerald-400' },
     { id: 'about', label: 'About & Updates', icon: Info, color: 'text-sky-400' },
@@ -630,7 +630,7 @@ export const SettingsView: React.FC = () => {
               <div>
                 <h3 className="text-sm font-bold text-text-primary font-display flex items-center space-x-2">
                   <Sliders className="h-4 w-4 text-indigo-400" />
-                  <span>JobSpy Multi-Channel Scraper Engine</span>
+                  <span>JobScrap Multi-Portal Scraper Engine</span>
                 </h3>
                 <p className="text-[11px] text-text-muted mt-0.5">
                   Toggle platform adapters used during live searches. JobFinder connects to LinkedIn, Indeed, Naukri, Glassdoor, and ZipRecruiter in parallel.
@@ -643,7 +643,7 @@ export const SettingsView: React.FC = () => {
                   <div className={`w-3 h-3 rounded-full ${jobspyStatus === 'running' ? 'bg-emerald-400 shadow-xs' : 'bg-amber-400'}`} />
                   <div>
                     <h4 className="text-xs font-bold text-text-primary">FastAPI Python Scraper Microservice</h4>
-                    <p className="text-[10px] text-text-muted">JobSpy Python aggregator on Render with client-side failover fallback</p>
+                    <p className="text-[10px] text-text-muted">JobScrap Python multi-channel crawler (Port 8000) on Render with client-side failover fallback</p>
                   </div>
                 </div>
                 <span className="text-xs font-bold px-2.5 py-1 rounded-full border text-emerald-400" style={{ background: 'rgba(16, 185, 129, 0.12)', borderColor: 'rgba(16, 185, 129, 0.3)' }}>
@@ -672,7 +672,7 @@ export const SettingsView: React.FC = () => {
                           <Globe className="h-4 w-4 text-indigo-400" />
                           <div>
                             <span className="text-xs font-bold text-text-primary block">{adp.name}</span>
-                            <span className="text-[10px] text-text-muted">Direct JobSpy Query Pipeline</span>
+                            <span className="text-[10px] text-text-muted">Direct JobScrap Live Pipeline</span>
                           </div>
                         </div>
                         <input
@@ -850,7 +850,7 @@ export const SettingsView: React.FC = () => {
                   </h3>
                 </div>
                 <p className="text-xs text-text-muted mt-1">
-                  Manage app version updates internally (no browser redirection) and check live JobSpy scraper definitions.
+                  Manage app version updates internally (no browser redirection) and check live JobScrap scraper definitions.
                 </p>
               </div>
 
@@ -958,7 +958,7 @@ export const SettingsView: React.FC = () => {
                   </div>
                   <div className="p-3 rounded-xl bg-surface-raised border space-y-1" style={{ borderColor: 'var(--border-subtle)' }}>
                     <span className="text-[10px] text-text-muted uppercase font-bold tracking-wider block">Scraper Core</span>
-                    <span className="text-xs font-bold text-text-primary block">Python JobSpy</span>
+                    <span className="text-xs font-bold text-text-primary block">Python JobScrap</span>
                   </div>
                   <div className="p-3 rounded-xl bg-surface-raised border space-y-1" style={{ borderColor: 'var(--border-subtle)' }}>
                     <span className="text-[10px] text-text-muted uppercase font-bold tracking-wider block">Database</span>
@@ -971,7 +971,7 @@ export const SettingsView: React.FC = () => {
                 </div>
               </div>
 
-              {/* 2. JobSpy Scraper Engine & Definitions Updater Card */}
+              {/* 2. JobScrap Scraper Engine & Definitions Updater Card */}
               <div className="card p-5 sm:p-6 rounded-2xl border space-y-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-center space-x-3.5">
@@ -980,7 +980,7 @@ export const SettingsView: React.FC = () => {
                     </div>
                     <div>
                       <div className="flex items-center space-x-2">
-                        <h4 className="text-sm font-bold text-text-primary font-display">JobSpy Scraping Engine</h4>
+                        <h4 className="text-sm font-bold text-text-primary font-display">JobScrap Custom Scraping Engine</h4>
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                           {jobspyInfo?.installed || 'python-jobspy v1.1.75'}
                         </span>
@@ -993,19 +993,19 @@ export const SettingsView: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={handleCheckJobSpy}
+                    onClick={handleCheckJobScrap}
                     disabled={isCheckingJobspy}
                     className="btn-secondary text-xs px-4 py-2 font-bold flex items-center justify-center space-x-1.5 cursor-pointer hover:scale-105 transition-all shrink-0"
                   >
                     <RefreshCw size={13} className={isCheckingJobspy ? 'animate-spin' : ''} />
-                    <span>{isCheckingJobspy ? 'Checking PyPI...' : 'Check & Update JobSpy'}</span>
+                    <span>{isCheckingJobspy ? 'Checking PyPI...' : 'Check & Update JobScrap'}</span>
                   </button>
                 </div>
 
                 {jobspyUpdateSuccess && (
                   <div className="p-3.5 rounded-xl border text-xs font-semibold flex items-center space-x-2 bg-emerald-500/10 text-emerald-400 border-emerald-500/30 animate-fade-in">
                     <CheckCircle2 size={16} />
-                    <span>JobSpy Engine Definitions are synchronized with latest PyPI release ({jobspyInfo?.latest || '1.1.75'}).</span>
+                    <span>JobScrap Engine Definitions are synchronized with latest PyPI release ({jobspyInfo?.latest || '1.1.75'}).</span>
                   </div>
                 )}
               </div>

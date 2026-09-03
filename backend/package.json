@@ -1,22 +1,24 @@
 {
-  "name": "jobfinder-backend",
-  "version": "2.0.0",
-  "description": "JobFinder JobSpy Python Backend Service on Port 8000 (Naukri, Indeed, LinkedIn, Glassdoor, ZipRecruiter)",
+  "name": "jobscrap-backend",
+  "version": "1.0.0",
+  "description": "JobScrap Custom Multi-Portal Python Scraper on Port 8000 (Instahyre, Internshala, Shine, Freshersworld, Apna, Indeed, Naukri, LinkedIn, Glassdoor)",
   "private": true,
   "main": "dev.js",
   "scripts": {
-    "dev": "python -m uvicorn scraper-service-py.main:app --host 0.0.0.0 --port 8000 --reload",
-    "start": "python -m uvicorn scraper-service-py.main:app --host 0.0.0.0 --port 8000",
-    "jobspy": "python -m uvicorn scraper-service-py.main:app --host 0.0.0.0 --port 8000 --reload"
+    "dev": "python -m uvicorn jobscrap.api:app --host 0.0.0.0 --port 8000 --reload",
+    "start": "python -m uvicorn jobscrap.api:app --host 0.0.0.0 --port 8000",
+    "scheduler": "python jobscrap/scheduler.py"
   },
   "keywords": [
-    "jobfinder",
-    "jobspy",
+    "jobscrap",
     "fastapi",
+    "instahyre",
+    "internshala",
+    "shine",
     "naukri",
-    "linkedin",
-    "indeed"
+    "indeed",
+    "linkedin"
   ],
-  "author": "JobFinder",
+  "author": "Suvesh",
   "license": "MIT"
 }

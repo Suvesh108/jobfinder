@@ -50,25 +50,27 @@ export async function fetchLatestRelease(): Promise<ReleaseInfo | null> {
   }
 }
 
-export async function fetchJobSpyVersion(): Promise<{ installed: string; latest: string; isLatest: boolean }> {
+export async function fetchJobScrapVersion(): Promise<{ installed: string; latest: string; isLatest: boolean }> {
   try {
-    const res = await fetch('https://pypi.org/pypi/python-jobspy/json');
-    if (!res.ok) throw new Error('PyPI unreachable');
+    const res = await fetch('https://api.github.com/repos/Suvesh108/jobscrap/commits?per_page=1');
+    if (!res.ok) throw new Error('GitHub unreachable');
     const data = await res.json();
-    const latest = data.info?.version || '1.1.75';
+    const latest = data[0]?.sha?.substring(0, 7) || 'v1.0.0';
     return {
-      installed: '1.1.75 (Embedded / Cloud Active)',
-      latest: latest,
+      installed: 'v1.0.0 (Local Active)',
+      latest: `v1.0.0 (${latest})`,
       isLatest: true
     };
   } catch (err) {
     return {
-      installed: '1.1.75 (Active)',
-      latest: '1.1.75',
+      installed: 'v1.0.0 (Active)',
+      latest: 'v1.0.0',
       isLatest: true
     };
   }
 }
+
+export const fetchJobSpyVersion = fetchJobScrapVersion;
 
 /**
  * Downloads and triggers package installation 100% inside the app without opening Chrome.
