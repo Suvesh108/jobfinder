@@ -209,7 +209,7 @@ const fetchFromJobScrap = async (
   mockFallback?: (q: string, l: string) => JobListing[]
 ): Promise<JobListing[]> => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 1200);
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
 
   try {
     const url = `http://localhost:8000/search?query=${encodeURIComponent(query)}&location=${encodeURIComponent(location)}&sources=${encodeURIComponent(sourceId)}&results=25`;

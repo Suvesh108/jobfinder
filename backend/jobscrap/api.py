@@ -5,6 +5,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import csv
 import io
 import json
+import zipfile
+import shutil
+import urllib.request
 import datetime
 from typing import Optional, List, Dict, Any
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
@@ -17,8 +20,8 @@ import scrapers
 
 app = FastAPI(
     title="JobScrap API", 
-    description="Autonomous India Job Aggregator REST API & JobFinder Scraper Engine", 
-    version="1.0.0"
+    description="Autonomous India Job Aggregator REST API with 1-Click OTA Updater", 
+    version="0.2.0"
 )
 
 # Security: CORS configuration
@@ -30,40 +33,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-def format_salary_display(job: Dict[str, Any]) -> str:
-    min_s = job.get("min_salary_inr")
-    max_s = job.get("max_salary_inr")
-    if min_s and max_s:
-        return f"₹{min_s/100000:.1f} - {max_s/100000:.1f} LPA"
-    elif min_s:
-        return f"₹{min_s/100000:.1f}+ LPA"
-    elif max_s:
-        return f"Up to ₹{max_s/100000:.1f} LPA"
-    return "Not Specified"
+VERSION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "version.json")
 
-def format_job_listing(j: Dict[str, Any]) -> Dict[str, Any]:
-    today_str = datetime.date.today().strftime("%Y-%m-%d")
-    posted = j.get("posted_date")
-    if posted:
-        posted_str = str(posted).split("T")[0]
-    else:
-        posted_str = today_str
-
+def get_installed_version() -> Dict[str, Any]:
+    if os.path.exists(VERSION_FILE):
+        try:
+            with open(VERSION_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
     return {
-        "id": j.get("id"),
-        "title": j.get("title", "Developer"),
-        "company": j.get("company", "Tech Company"),
-        "location": j.get("location") or "India",
-        "salary": format_salary_display(j),
-        "url": j.get("url", "https://google.com"),
-        "source": str(j.get("source", "jobscrap")).capitalize(),
-        "postedDate": posted_str,
-        "posted_date": posted_str,
-        "description": j.get("description") or f"Direct opening on {j.get('source')} for {j.get('title')}.",
-        "job_type": j.get("job_type", "fulltime"),
-        "experience_level": j.get("experience_level", "fresher/mid"),
-        "status": j.get("status", "live")
+        "version": "v0.2",
+        "commit": "8331be0f5b20d0c4b5b439960146c7e1a010a0cd",
+        "shortCommit": "8331be0",
+        "date": datetime.date.today().strftime("%Y-%m-%d"),
+        "message": "Release v0.2"
     }
+
+def save_installed_version(data: Dict[str, Any]):
+    with open(VERSION_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
 
 db.init_db()
 
@@ -73,12 +62,160 @@ def startup_event():
 
 @app.get("/health")
 def health():
+    ver = get_installed_version()
     return {
         "status": "ok", 
         "engine": "JobScrap Custom Multi-Portal Engine",
+        "version": ver.get("version", "v0.2"),
+        "commit": ver.get("shortCommit", "8331be0"),
         "port": 8000,
         "supported_sources": list(scrapers.SCRAPERS.keys())
     }
+
+# ══════════════════════════════════════════════════════════════
+# 1-CLICK OTA UPDATER ENDPOINTS FOR JOBSCRAP
+# ══════════════════════════════════════════════════════════════
+
+@app.get("/updater/version")
+def get_version():
+    return get_installed_version()
+
+@app.get("/updater/check")
+def check_update():
+    """Checks GitHub for the latest commit on Suvesh108/jobscrap."""
+    installed = get_installed_version()
+    latest_info = {
+        "hasUpdate": False,
+        "installed": installed,
+        "latest": installed
+    }
+
+    try:
+        req = urllib.request.Request(
+            "https://api.github.com/repos/Suvesh108/jobscrap/commits/main",
+            headers={"User-Agent": "JobFinder-JobScrap-Updater"}
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            latest_sha = data.get("sha", "")
+            commit_msg = data.get("commit", {}).get("message", "").split("\n")[0]
+            commit_date = data.get("commit", {}).get("committer", {}).get("date", "")[:10]
+
+            latest_obj = {
+                "version": "v0.2",
+                "commit": latest_sha,
+                "shortCommit": latest_sha[:7] if latest_sha else "",
+                "date": commit_date,
+                "message": commit_msg
+            }
+            
+            has_update = bool(latest_sha and latest_sha != installed.get("commit"))
+            return {
+                "hasUpdate": has_update,
+                "installed": installed,
+                "latest": latest_obj
+            }
+    except Exception as e:
+        return {
+            "hasUpdate": False,
+            "installed": installed,
+            "latest": installed,
+            "error": str(e)
+        }
+
+@app.post("/updater/update")
+def perform_ota_update():
+    """1-Click OTA Update: Downloads latest zip from GitHub and updates backend/jobscrap files."""
+    installed = get_installed_version()
+    jobscrap_dir = os.path.dirname(os.path.abspath(__file__))
+    zip_url = "https://github.com/Suvesh108/jobscrap/archive/refs/heads/main.zip"
+    temp_zip = os.path.join(jobscrap_dir, "_ota_update.zip")
+    temp_extract = os.path.join(jobscrap_dir, "_ota_extracted")
+
+    try:
+        # 1. Download zip from GitHub
+        req = urllib.request.Request(zip_url, headers={"User-Agent": "JobFinder-JobScrap-Updater"})
+        with urllib.request.urlopen(req, timeout=20) as resp, open(temp_zip, "wb") as out:
+            shutil.copyfileobj(resp, out)
+
+        # 2. Extract files
+        if os.path.exists(temp_extract):
+            shutil.rmtree(temp_extract, ignore_errors=True)
+        os.makedirs(temp_extract, exist_ok=True)
+
+        with zipfile.ZipFile(temp_zip, "r") as z:
+            z.extractall(temp_extract)
+
+        # 3. Locate inner directory (e.g. jobscrap-main)
+        inner_dirs = [os.path.join(temp_extract, d) for d in os.listdir(temp_extract) if os.path.isdir(os.path.join(temp_extract, d))]
+        source_dir = inner_dirs[0] if inner_dirs else temp_extract
+
+        # 4. Copy updated python files, preserving jobs.db
+        preserved_files = {"jobs.db", "version.json", "api.py"}
+        for item in os.listdir(source_dir):
+            if item in preserved_files or item.startswith("."):
+                continue
+            s_path = os.path.join(source_dir, item)
+            d_path = os.path.join(jobscrap_dir, item)
+            if os.path.isfile(s_path):
+                shutil.copy2(s_path, d_path)
+            elif os.path.isdir(s_path):
+                shutil.copytree(s_path, d_path, dirs_exist_ok=True)
+
+        # Ensure scrapers.py has import urllib.parse
+        scrapers_path = os.path.join(jobscrap_dir, "scrapers.py")
+        if os.path.exists(scrapers_path):
+            with open(scrapers_path, "r", encoding="utf-8") as f:
+                sc_content = f.read()
+            if "import urllib.parse" not in sc_content:
+                with open(scrapers_path, "w", encoding="utf-8") as f:
+                    f.write("import urllib.parse\n" + sc_content)
+
+        # 5. Fetch latest commit metadata
+        try:
+            req_c = urllib.request.Request(
+                "https://api.github.com/repos/Suvesh108/jobscrap/commits/main",
+                headers={"User-Agent": "JobFinder-JobScrap-Updater"}
+            )
+            with urllib.request.urlopen(req_c, timeout=5) as resp_c:
+                c_data = json.loads(resp_c.read().decode("utf-8"))
+                new_sha = c_data.get("sha", installed.get("commit"))
+                new_msg = c_data.get("commit", {}).get("message", "").split("\n")[0]
+                new_date = c_data.get("commit", {}).get("committer", {}).get("date", "")[:10]
+        except Exception:
+            new_sha = "latest"
+            new_msg = "Updated from GitHub main"
+            new_date = datetime.date.today().strftime("%Y-%m-%d")
+
+        new_version = {
+            "version": "v0.2",
+            "commit": new_sha,
+            "shortCommit": new_sha[:7] if new_sha else "",
+            "date": new_date,
+            "message": new_msg
+        }
+        save_installed_version(new_version)
+
+        return {
+            "success": True,
+            "message": f"Successfully updated JobScrap to {new_version['shortCommit']} ({new_version['message']})",
+            "version": new_version
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"OTA Update failed: {str(e)}")
+    finally:
+        # Cleanup temp artifacts
+        if os.path.exists(temp_zip):
+            try: os.remove(temp_zip)
+            except Exception: pass
+        if os.path.exists(temp_extract):
+            try: shutil.rmtree(temp_extract, ignore_errors=True)
+            except Exception: pass
+
+# ══════════════════════════════════════════════════════════════
+# SEARCH & STATS ENDPOINTS
+# ══════════════════════════════════════════════════════════════
 
 @app.get("/stats")
 def get_stats():
@@ -96,6 +233,76 @@ def get_stats():
         "unchecked": unchecked,
         "sources": by_src
     }
+
+@app.get("/search")
+def search_frontend_compatible(
+    query: Optional[str] = None,
+    location: Optional[str] = None,
+    sources: Optional[str] = None,
+    source: Optional[str] = None,
+    results: int = Query(30, ge=1, le=100)
+):
+    src = sources or source
+    src_filter = src if src and src != "all" else None
+    
+    # Check DB first
+    jobs = db.search_jobs(
+        query=query,
+        location=location,
+        source=src_filter,
+        status="live",
+        limit=results
+    )
+    if not jobs:
+        jobs = db.search_jobs(
+            query=query,
+            location=location,
+            source=src_filter,
+            limit=results
+        )
+
+    # If DB has very few results and a specific source was requested, run live scrape on-the-fly
+    if len(jobs) < 3 and src_filter and src_filter in scrapers.SCRAPERS and query:
+        try:
+            fn = scrapers.SCRAPERS.get(src_filter)
+            if fn:
+                scraped = fn(query=query, count=min(results, 15))
+                if scraped:
+                    scraper.assign_dedup_groups(scraped)
+                    for item in scraped:
+                        db.upsert_job(item)
+                    jobs = scraped
+        except Exception as e:
+            print(f"[Live Scrape] Error on {src_filter}: {e}")
+
+    out = []
+    seen_urls = set()
+    for j in jobs:
+        u = j.get("url")
+        if not u or u in seen_urls:
+            continue
+        seen_urls.add(u)
+
+        sal = ""
+        if j.get("min_salary_inr") and j.get("max_salary_inr"):
+            sal = f"₹{j['min_salary_inr']/100000:.1f} - {j['max_salary_inr']/100000:.1f} LPA"
+        elif j.get("min_salary_inr"):
+            sal = f"₹{j['min_salary_inr']/100000:.1f}+ LPA"
+        else:
+            sal = "Not Specified"
+
+        out.append({
+            "title": j["title"],
+            "company": j["company"],
+            "location": j.get("location") or location or "India",
+            "salary": sal,
+            "url": u,
+            "source": str(j["source"]).capitalize(),
+            "postedDate": j.get("posted_date") or j.get("scraped_at", "")[:10] or datetime.date.today().strftime("%Y-%m-%d"),
+            "description": j.get("description") or f"Direct verified opening on {j['source']} for {j['title']}."
+        })
+
+    return out
 
 @app.get("/jobs")
 def get_jobs(
@@ -116,56 +323,7 @@ def get_jobs(
         limit=limit,
         offset=offset
     )
-    formatted = [format_job_listing(j) for j in results]
-    return {"count": len(formatted), "offset": offset, "limit": limit, "jobs": formatted}
-
-@app.get("/search")
-def search_endpoint(
-    query: str = Query(..., description="Job title / search keyword"),
-    location: Optional[str] = Query("", description="Job location"),
-    sources: Optional[str] = Query("all", description="Comma separated sources"),
-    results: int = Query(30, description="Results per source"),
-    postedAfter: Optional[str] = Query("", description="Cutoff date")
-):
-    """Unified Search endpoint for JobFinder frontend integration."""
-    src_list = [s.strip().lower() for s in sources.split(",") if s.strip()] if sources else ["all"]
-    
-    # 1. First check local DB
-    db_matches = []
-    for s in src_list:
-        db_s = None if s in ("all", "*") else s
-        found = db.search_jobs(query=query, location=location or None, source=db_s, limit=results)
-        db_matches.extend(found)
-
-    # 2. If DB has few results, trigger on-the-fly live scraper for requested sources
-    if len(db_matches) < 5:
-        target_sources = list(scrapers.SCRAPERS.keys()) if "all" in src_list else [s for s in src_list if s in scrapers.SCRAPERS]
-        if not target_sources:
-            target_sources = ["instahyre", "internshala", "shine", "freshersworld", "apna", "indeed", "linkedin"]
-        
-        for src in target_sources[:4]:  # Top fast sources
-            try:
-                fn = scrapers.SCRAPERS.get(src)
-                if fn:
-                    scraped = fn(query=query, count=min(results, 15))
-                    if scraped:
-                        scraper.assign_dedup_groups(scraped)
-                        for item in scraped:
-                            db.upsert_job(item)
-                            db_matches.append(item)
-            except Exception as e:
-                print(f"[Live Scrape] Error on {src}: {e}")
-
-    # Remove duplicates
-    seen_urls = set()
-    unique_jobs = []
-    for j in db_matches:
-        u = j.get("url")
-        if u and u not in seen_urls:
-            seen_urls.add(u)
-            unique_jobs.append(format_job_listing(j))
-
-    return unique_jobs[:100]
+    return {"count": len(results), "offset": offset, "limit": limit, "jobs": results}
 
 @app.get("/jobs/{job_id}")
 def get_job_by_id(job_id: str):
@@ -173,7 +331,7 @@ def get_job_by_id(job_id: str):
         row = conn.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Job not found")
-        return format_job_listing(dict(row))
+        return dict(row)
 
 @app.post("/scrape")
 def trigger_scrape(
@@ -193,19 +351,18 @@ def trigger_validate(background_tasks: BackgroundTasks, stale_hours: int = 6):
 @app.get("/export")
 def export_jobs(format: str = Query("json", pattern="^(json|csv)$"), status: Optional[str] = "live"):
     jobs = db.search_jobs(status=status, limit=10000, offset=0)
-    formatted = [format_job_listing(j) for j in jobs]
     if format == "csv":
         output = io.StringIO()
-        if formatted:
-            writer = csv.DictWriter(output, fieldnames=list(formatted[0].keys()))
+        if jobs:
+            writer = csv.DictWriter(output, fieldnames=list(jobs[0].keys()))
             writer.writeheader()
-            writer.writerows(formatted)
+            writer.writerows(jobs)
         return Response(
             content=output.getvalue(),
             media_type="text/csv",
             headers={"Content-Disposition": "attachment; filename=jobs.csv"}
         )
-    return JSONResponse(content=formatted)
+    return JSONResponse(content=jobs)
 
 if __name__ == "__main__":
     import uvicorn

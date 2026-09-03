@@ -1,0 +1,7 @@
+{
+  "version": "v0.2",
+  "commit": "8331be0f5b20d0c4b5b439960146c7e1a010a0cd",
+  "shortCommit": "8331be0",
+  "date": "2026-09-03",
+  "message": "docs: bump release to v0.2 with frontend search & soft-404 highlights"
+}
