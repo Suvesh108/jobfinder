@@ -53,11 +53,10 @@ jobs:
         working-directory: frontend/android
         run: ./gradlew assembleDebug --stacktrace
 
-      - name: Prepare Named Release APKs
+      - name: Prepare Named Release APK
         run: |
           mkdir -p release
           cp frontend/android/app/build/outputs/apk/debug/app-debug.apk release/JobFinder-${{ github.ref_name }}.apk
-          cp frontend/android/app/build/outputs/apk/debug/app-debug.apk release/jobfinder.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
@@ -72,13 +71,12 @@ jobs:
           name: JobFinder ${{ github.ref_name }}
           body: |
             * **Android APK (Direct Install)**: `JobFinder-${{ github.ref_name }}.apk`
-            * **Universal Android APK**: `jobfinder.apk`
             * **Desktop / Web Application**: `index.html` (PWA Offline Ready)
 
             ### ✨ Features & Improvements in ${{ github.ref_name }}
 
             * 📱 **Dedicated Native Mobile UX**: Built specifically for Android touch displays with centered header, bottom glassmorphic navigation dock, and zero-overflow layout.
-            * 🔍 **Unified Luxury Job Search Engine**: Parallel aggregator across LinkedIn, Naukri, Indeed, Glassdoor, and ZipRecruiter with real-time scan progress bars.
+            * 🔍 **Unified Luxury Job Search Engine**: Parallel aggregator across LinkedIn, Naukri, Indeed, Glassdoor, Internshala, Shine, Apna, Freshersworld & Instahyre.
             * 🤖 **Intelligent AI Chat Copilot**: Drag-and-drop resume tailoring with multi-provider AI support (Google Gemini, OpenRouter, NVIDIA NIM, Groq, DeepSeek).
             * 📄 **Jake's ATS Resume Generator**: Real-time ATS single-column resume with interactive in-browser LaTeX (`.tex`) code editor and instant PDF export.
             * 📋 **Application Pipeline Tracker**: Kanban and list views with follow-up notifications, Notion database synchronization, and CSV export.
@@ -88,6 +86,5 @@ jobs:
           prerelease: false
           files: |
             release/JobFinder-${{ github.ref_name }}.apk
-            release/jobfinder.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

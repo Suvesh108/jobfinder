@@ -9,7 +9,7 @@ export interface ReleaseInfo {
   htmlUrl: string;
 }
 
-export const CURRENT_APP_VERSION = 'v1.1.7';
+export const CURRENT_APP_VERSION = 'v2.0.0';
 
 export async function fetchLatestRelease(): Promise<ReleaseInfo | null> {
   try {

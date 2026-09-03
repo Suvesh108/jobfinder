@@ -93,82 +93,10 @@ export const ProfileView: React.FC = () => {
       setLanguagesBackendSkills(p.languagesBackendSkills || 'Java, JavaScript, TypeScript, SQL, Spring Boot, Node.js, Express.js, REST APIs');
       setDatabasesSkills(p.databasesSkills || 'MySQL, PostgreSQL, JDBC, Dexie (IndexedDB)');
 
-      setEducationList(p.educationList || [
-        {
-          institution: 'Nagarjuna College of Engineering and Technology',
-          cgpaOrGrade: 'CGPA: 7/10',
-          location: 'Bangalore, India',
-          degree: 'B.Tech in Computer Science and Engineering',
-          years: '2021 — 2025',
-        }
-      ]);
-
-      setExperienceList(p.experienceList || [
-        {
-          company: 'CODTECH IT SOLUTIONS',
-          location: 'Remote',
-          dates: 'Jan 2025 — May 2025',
-          role: 'Frontend Web Development Intern',
-          certificateUrl: 'https://certificate.link',
-          bullets: [
-            'Diagnosed and resolved application bugs, UI issues, and data-flow errors within tight resolution windows, similar to L1/L2 ticket SLAs.',
-            'Built and debugged features using HTML, CSS, and JavaScript, testing across browsers and environments for stability.',
-            'Documented technical issues, troubleshooting steps, and resolutions clearly for team handoff and coordination.'
-          ]
-        },
-        {
-          company: 'Aqmnez Automation Pvt. Ltd.',
-          location: 'Bangalore, India',
-          dates: '1 Month (2023)',
-          role: 'Systems Validation Trainee',
-          certificateUrl: 'https://certificate.link',
-          bullets: [
-            'Identified system and configuration discrepancies against defined workflows, escalating unresolved issues – consistent with L1-to-L2 escalation protocol.',
-            'Validated system setup and configuration steps across multiple test environments, maintaining accurate records.',
-            'Communicated status updates and resolution steps clearly to stakeholders to keep turnaround time minimal.'
-          ]
-        }
-      ]);
-
-      setProjectsList(p.projectsList || [
-        {
-          title: 'JobFinder — Job Tracking & Search Platform',
-          githubUrl: 'https://github.com/Suvesh108/jobfinder',
-          bullets: [
-            'Built a multi-service application (React frontend, Python/FastAPI & Node/Express backends), troubleshooting cross-service connectivity and configuration issues end-to-end.',
-            'Diagnosed data-flow and API integration failures, applying structured root-cause analysis to restore stable functionality.'
-          ]
-        },
-        {
-          title: 'Universal-Shared — Cross-Platform Sharing Platform',
-          githubUrl: 'https://github.com/suveshkumar/universal-shared',
-          bullets: [
-            'Built a real-time client-server data-sharing application, testing connectivity and file transfer across multiple devices and network conditions.',
-            'Resolved multi-device synchronization and communication failures through systematic testing and debugging.'
-          ]
-        },
-        {
-          title: 'BlockVerify — Product Authentication & Supply Chain Verification',
-          githubUrl: 'https://github.com/suveshkumar/blockverify',
-          bullets: [
-            'Developed a blockchain-based verification system on a local Hardhat network, troubleshooting smart contract deployment and integration issues.',
-            'Designed anomaly-based fraud detection logic and custody-tracking workflows, documenting the system architecture end-to-end.'
-          ]
-        }
-      ]);
-
-      setCertificationsList(p.certificationsList || [
-        {
-          title: 'Oracle Cloud Infrastructure 2025 Foundations Associate',
-          certificateUrl: 'https://certificate.link',
-          description: 'Foundation in IT Systems, Networking, and Cloud Infrastructure'
-        },
-        {
-          title: 'Cyber Crime Conclave Hackathon Participant',
-          certificateUrl: 'https://certificate.link',
-          description: 'IT Security Fundamentals & System Integrity'
-        }
-      ]);
+      setEducationList(p.educationList || []);
+      setExperienceList(p.experienceList || []);
+      setProjectsList(p.projectsList || []);
+      setCertificationsList(p.certificationsList || []);
 
       setNotionToken(p.notionToken || '');
       setNotionDatabaseId(p.notionDatabaseId || '');
@@ -387,7 +315,7 @@ export const ProfileView: React.FC = () => {
           <ResumePreview 
             profile={{
               ...(fullProfile || {}),
-              name: name || fullProfile?.name || 'SUVESH KUMAR',
+              name: name || fullProfile?.name || '',
               headline: headline || fullProfile?.headline || '',
               email: email || fullProfile?.email || '',
               phone: phone || fullProfile?.phone || '',
@@ -436,7 +364,7 @@ export const ProfileView: React.FC = () => {
                   <input
                     type="text"
                     required
-                    placeholder="e.g. SUVESH KUMAR"
+                    placeholder="e.g. Alex Smith"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full border rounded-xl px-4 py-2 text-xs text-text-primary focus:outline-none"
@@ -449,7 +377,7 @@ export const ProfileView: React.FC = () => {
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Computer Science Graduate | Software Engineer"
+                    placeholder="e.g. Software Engineer | Full Stack Developer"
                     value={headline}
                     onChange={(e) => setHeadline(e.target.value)}
                     className="w-full border rounded-xl px-4 py-2 text-xs text-text-primary focus:outline-none"
@@ -465,7 +393,7 @@ export const ProfileView: React.FC = () => {
                   <input
                     type="email"
                     required
-                    placeholder="suvesh546@gmail.com"
+                    placeholder="alex.smith@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full border rounded-xl px-4 py-2 text-xs text-text-primary focus:outline-none"
@@ -481,7 +409,7 @@ export const ProfileView: React.FC = () => {
                   <input
                     type="text"
                     required
-                    placeholder="+91-6202474991"
+                    placeholder="+91-9876543210"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     className="w-full border rounded-xl px-4 py-2 text-xs text-text-primary focus:outline-none"
@@ -496,7 +424,7 @@ export const ProfileView: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. Bangalore, India"
+                    placeholder="e.g. Bengaluru, India"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
                     className="w-full border rounded-xl px-4 py-2 text-xs text-text-primary focus:outline-none"
@@ -511,7 +439,7 @@ export const ProfileView: React.FC = () => {
                   </label>
                   <input
                     type="url"
-                    placeholder="https://linkedin.com/in/suveshkumar"
+                    placeholder="https://linkedin.com/in/username"
                     value={linkedinUrl}
                     onChange={(e) => setLinkedinUrl(e.target.value)}
                     className="w-full border rounded-xl px-4 py-2 text-xs text-text-primary focus:outline-none"
@@ -526,7 +454,7 @@ export const ProfileView: React.FC = () => {
                   </label>
                   <input
                     type="url"
-                    placeholder="https://github.com/suveshkumar"
+                    placeholder="https://github.com/username"
                     value={githubUrl}
                     onChange={(e) => setGithubUrl(e.target.value)}
                     className="w-full border rounded-xl px-4 py-2 text-xs text-text-primary focus:outline-none"
@@ -541,7 +469,7 @@ export const ProfileView: React.FC = () => {
                   </label>
                   <input
                     type="url"
-                    placeholder="https://suveshkumar.dev"
+                    placeholder="https://yourportfolio.dev"
                     value={portfolioUrl}
                     onChange={(e) => setPortfolioUrl(e.target.value)}
                     className="w-full border rounded-xl px-4 py-2 text-xs text-text-primary focus:outline-none"
@@ -943,7 +871,7 @@ export const ProfileView: React.FC = () => {
                         <label className="text-[9px] font-bold text-text-muted uppercase block mb-1">GitHub Repository URL</label>
                         <input
                           type="url"
-                          placeholder="https://github.com/Suvesh108/jobfinder"
+                          placeholder="https://github.com/username/project-repo"
                           value={prj.githubUrl || ''}
                           onChange={(e) => updateProject(prjIdx, 'githubUrl', e.target.value)}
                           className="w-full border rounded-lg px-3 py-1.5 text-xs text-text-primary focus:outline-none"

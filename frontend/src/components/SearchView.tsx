@@ -599,9 +599,9 @@ const expandRoleToQueries = (role: string): string[] => {
 export const SearchView: React.FC = () => {
   const { enabledAdapters, setActiveTab } = useUIStore();
 
-  // Filter & Query States
-  const [selectedRoles, setSelectedRoles] = useState<string[]>(['Software Engineer / Full Stack Developer']);
-  const [locQuery, setLocQuery] = useState('Bengaluru, Karnataka');
+  // Filter & Query States (Empty by default so user enters own criteria)
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [locQuery, setLocQuery] = useState('');
   const [dateOption, setDateOption] = useState('all');
   const [postedAfter, setPostedAfter] = useState('');
   const [experienceLevel, setExperienceLevel] = useState('all');
