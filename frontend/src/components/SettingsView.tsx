@@ -1,4 +1,4 @@
-import { fetchLatestRelease, downloadApkInternally, type ReleaseInfo } from '../utils/updaterService';
+import { fetchLatestRelease, downloadApkInternally, type ReleaseInfo, checkScraperUpdate, applyScraperUpdate, type ScraperUpdateStatus, INSTALLED_SCRAPER_INFO } from '../utils/updaterService';
 import React, { useState, useEffect } from 'react';
 import { db, getUserProfile, saveUserProfile, type JobApplication, type UserProfile } from '../db/schema';
 import { useUIStore, type AppTheme } from '../store/useUIStore';
@@ -53,6 +53,12 @@ export const SettingsView: React.FC = () => {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [dbSuccessMessage, setDbSuccessMessage] = useState<string | null>(null);
   const [jobspyStatus, setJobspyStatus] = useState<'checking' | 'running' | 'offline'>('checking');
+  // Scraper Check for Update State
+  const [scraperUpdate, setScraperUpdate] = useState<ScraperUpdateStatus | null>(null);
+  const [isCheckingScraper, setIsCheckingScraper] = useState(false);
+  const [isUpdatingScraper, setIsUpdatingScraper] = useState(false);
+  const [scraperUpdateNotice, setScraperUpdateNotice] = useState<string | null>(null);
+
 
 
   // AI Configuration State
@@ -216,6 +222,30 @@ export const SettingsView: React.FC = () => {
       setDownloadDone(true);
     }
   };
+  
+  const handleCheckScraperUpdate = async () => {
+    setIsCheckingScraper(true);
+    setScraperUpdateNotice(null);
+    try {
+      const status = await checkScraperUpdate();
+      setScraperUpdate(status);
+    } finally {
+      setIsCheckingScraper(false);
+    }
+  };
+
+  const handleApplyScraperUpdate = async () => {
+    setIsUpdatingScraper(true);
+    setScraperUpdateNotice(null);
+    try {
+      const res = await applyScraperUpdate();
+      setScraperUpdateNotice(res.message);
+      setScraperUpdate((prev) => prev ? { ...prev, hasUpdate: false } : null);
+    } finally {
+      setIsUpdatingScraper(false);
+    }
+  };
+
   const handleDaysChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const days = parseInt(e.target.value, 10);
     if (!isNaN(days) && days > 0) {
@@ -964,7 +994,7 @@ export const SettingsView: React.FC = () => {
                       <div className="flex items-center space-x-2">
                         <h4 className="text-sm font-bold text-text-primary font-display">JobScrap Custom Scraping Engine</h4>
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                          v0.2 (Active)
+                          {INSTALLED_SCRAPER_INFO.version} ({INSTALLED_SCRAPER_INFO.shortSha})
                         </span>
                       </div>
                       <p className="text-xs text-text-muted mt-0.5">
@@ -973,17 +1003,63 @@ export const SettingsView: React.FC = () => {
                     </div>
                   </div>
 
-                  <a
-                    href="https://github.com/Suvesh108/jobscrap"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn-secondary text-xs px-4 py-2 flex items-center justify-center space-x-1.5 font-bold shrink-0 hover:scale-105 transition-all"
-                  >
-                    <Globe size={14} />
-                    <span>JobScrap Repository</span>
-                    <ExternalLink size={12} />
-                  </a>
+                  <div className="flex items-center space-x-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={handleCheckScraperUpdate}
+                      disabled={isCheckingScraper || isUpdatingScraper}
+                      className="btn-secondary text-xs px-3.5 py-2 font-bold flex items-center justify-center space-x-1.5 cursor-pointer hover:scale-105 transition-all"
+                    >
+                      <RefreshCw size={13} className={isCheckingScraper ? 'animate-spin' : ''} />
+                      <span>{isCheckingScraper ? 'Checking...' : 'Check for Update'}</span>
+                    </button>
+
+                    {/* Show Update button ONLY IF an update is available */}
+                    {scraperUpdate?.hasUpdate && (
+                      <button
+                        type="button"
+                        onClick={handleApplyScraperUpdate}
+                        disabled={isUpdatingScraper}
+                        className="btn-primary text-xs px-3.5 py-2 font-bold flex items-center justify-center space-x-1.5 cursor-pointer hover:scale-105 transition-all shadow-md animate-pulse"
+                      >
+                        <Download size={13} className={isUpdatingScraper ? 'animate-bounce' : ''} />
+                        <span>{isUpdatingScraper ? 'Updating...' : 'Update Scraper'}</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
+
+                {/* Status Notice after checking */}
+                {scraperUpdate && !scraperUpdateNotice && (
+                  <div 
+                    className="p-3 rounded-xl border text-xs font-semibold flex items-center space-x-2 animate-fade-in"
+                    style={{
+                      background: scraperUpdate.hasUpdate ? 'rgba(59, 130, 246, 0.12)' : 'rgba(16, 185, 129, 0.12)',
+                      color: scraperUpdate.hasUpdate ? 'var(--status-info)' : 'var(--status-success)',
+                      borderColor: scraperUpdate.hasUpdate ? 'rgba(59, 130, 246, 0.25)' : 'rgba(16, 185, 129, 0.25)'
+                    }}
+                  >
+                    {scraperUpdate.hasUpdate ? <Sparkles size={15} className="shrink-0" /> : <CheckCircle2 size={15} className="shrink-0" />}
+                    <div className="flex-1 flex flex-wrap items-center justify-between gap-1">
+                      <span>
+                        {scraperUpdate.hasUpdate
+                          ? `New update available: ${scraperUpdate.latestMessage || scraperUpdate.shortSha} (${scraperUpdate.shortSha})`
+                          : `JobScrap ${scraperUpdate.installedVersion} (${scraperUpdate.installedSha}) is up to date with GitHub.`}
+                      </span>
+                      {scraperUpdate.latestDate && (
+                        <span className="text-[10px] opacity-80">{scraperUpdate.latestDate}</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Success Notice after updating */}
+                {scraperUpdateNotice && (
+                  <div className="p-3 rounded-xl border text-xs font-semibold flex items-center space-x-2 bg-emerald-500/10 text-emerald-400 border-emerald-500/30 animate-fade-in">
+                    <CheckCircle2 size={15} className="shrink-0" />
+                    <span>{scraperUpdateNotice}</span>
+                  </div>
+                )}
               </div>
 
               {/* 3. Open Source Repository Card */}

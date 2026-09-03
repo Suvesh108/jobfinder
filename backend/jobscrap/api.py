@@ -71,6 +71,109 @@ def health():
         "port": 8000,
         "supported_sources": list(scrapers.SCRAPERS.keys())
     }
+
+# ══════════════════════════════════════════════════════════════
+# JOBSCRAP UPDATER ENDPOINTS
+# ══════════════════════════════════════════════════════════════
+
+@app.get("/updater/check")
+def check_scraper_update():
+    ver = get_installed_version()
+    try:
+        req = urllib.request.Request(
+            "https://api.github.com/repos/Suvesh108/jobscrap/commits/main",
+            headers={"User-Agent": "JobFinder-Scraper-Updater"}
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            sha = data.get("sha", "")
+            msg = data.get("commit", {}).get("message", "").split("\n")[0]
+            date = data.get("commit", {}).get("committer", {}).get("date", "")[:10]
+            installed_sha = ver.get("commit", "")
+            has_update = bool(sha and sha != installed_sha)
+            return {
+                "installedSha": installed_sha,
+                "latestSha": sha,
+                "shortSha": sha[:7] if sha else "",
+                "hasUpdate": has_update,
+                "latestMessage": msg,
+                "latestDate": date
+            }
+    except Exception as e:
+        return {
+            "installedSha": ver.get("commit", ""),
+            "latestSha": ver.get("commit", ""),
+            "shortSha": ver.get("shortCommit", "8331be0"),
+            "hasUpdate": False,
+            "error": str(e)
+        }
+
+@app.post("/updater/update")
+def perform_scraper_update():
+    jobscrap_dir = os.path.dirname(os.path.abspath(__file__))
+    zip_url = "https://github.com/Suvesh108/jobscrap/archive/refs/heads/main.zip"
+    temp_zip = os.path.join(jobscrap_dir, "_temp_update.zip")
+    temp_dir = os.path.join(jobscrap_dir, "_temp_update")
+
+    try:
+        req = urllib.request.Request(zip_url, headers={"User-Agent": "JobFinder-Scraper-Updater"})
+        with urllib.request.urlopen(req, timeout=20) as resp, open(temp_zip, "wb") as out:
+            shutil.copyfileobj(resp, out)
+
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir, ignore_errors=True)
+        os.makedirs(temp_dir, exist_ok=True)
+
+        with zipfile.ZipFile(temp_zip, "r") as z:
+            z.extractall(temp_dir)
+
+        inners = [os.path.join(temp_dir, d) for d in os.listdir(temp_dir) if os.path.isdir(os.path.join(temp_dir, d))]
+        src_dir = inners[0] if inners else temp_dir
+
+        preserved = {"jobs.db", "version.json"}
+        for item in os.listdir(src_dir):
+            if item in preserved or item.startswith("."):
+                continue
+            s = os.path.join(src_dir, item)
+            d = os.path.join(jobscrap_dir, item)
+            if os.path.isfile(s):
+                shutil.copy2(s, d)
+            elif os.path.isdir(s):
+                shutil.copytree(s, d, dirs_exist_ok=True)
+
+        # Get latest commit info from GitHub
+        try:
+            req_c = urllib.request.Request(
+                "https://api.github.com/repos/Suvesh108/jobscrap/commits/main",
+                headers={"User-Agent": "JobFinder-Scraper-Updater"}
+            )
+            with urllib.request.urlopen(req_c, timeout=5) as resp_c:
+                c_data = json.loads(resp_c.read().decode("utf-8"))
+                new_sha = c_data.get("sha", "")
+                new_msg = c_data.get("commit", {}).get("message", "").split("\n")[0]
+                new_date = c_data.get("commit", {}).get("committer", {}).get("date", "")[:10]
+        except Exception:
+            new_sha = "8331be0"
+            new_msg = "Updated from GitHub main"
+            new_date = datetime.date.today().strftime("%Y-%m-%d")
+
+        new_ver = {
+            "version": "v0.2",
+            "commit": new_sha,
+            "shortCommit": new_sha[:7] if new_sha else "8331be0",
+            "date": new_date,
+            "message": new_msg
+        }
+        save_installed_version(new_ver)
+        return {"success": True, "message": f"Updated to {new_ver['shortCommit']} ({new_ver['message']})"}
+    finally:
+        if os.path.exists(temp_zip):
+            try: os.remove(temp_zip)
+            except Exception: pass
+        if os.path.exists(temp_dir):
+            try: shutil.rmtree(temp_dir, ignore_errors=True)
+            except Exception: pass
+
 # ══════════════════════════════════════════════════════════════
 # SEARCH & STATS ENDPOINTS
 # ══════════════════════════════════════════════════════════════

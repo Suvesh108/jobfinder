@@ -148,3 +148,70 @@ export async function downloadApkInternally(
     return { success: false };
   }
 }
+
+export interface ScraperUpdateStatus {
+  checked: boolean;
+  hasUpdate: boolean;
+  installedVersion: string;
+  installedSha: string;
+  latestSha?: string;
+  shortSha?: string;
+  latestMessage?: string;
+  latestDate?: string;
+  error?: string;
+}
+
+export const INSTALLED_SCRAPER_INFO = {
+  version: 'v0.2',
+  sha: '8331be0f5b20d0c4b5b439960146c7e1a010a0cd',
+  shortSha: '8331be0',
+  message: 'docs: bump release to v0.2 with frontend search & soft-404 highlights'
+};
+
+export async function checkScraperUpdate(): Promise<ScraperUpdateStatus> {
+  try {
+    const res = await fetch('https://api.github.com/repos/Suvesh108/jobscrap/commits/main');
+    if (!res.ok) throw new Error('GitHub API unreachable');
+    const data = await res.json();
+    const sha = data.sha || INSTALLED_SCRAPER_INFO.sha;
+    const msg = data.commit?.message?.split('\n')[0] || '';
+    const date = data.commit?.committer?.date?.substring(0, 10) || '';
+    const hasUpdate = Boolean(sha && sha !== INSTALLED_SCRAPER_INFO.sha);
+
+    return {
+      checked: true,
+      hasUpdate,
+      installedVersion: INSTALLED_SCRAPER_INFO.version,
+      installedSha: INSTALLED_SCRAPER_INFO.shortSha,
+      latestSha: sha,
+      shortSha: sha.substring(0, 7),
+      latestMessage: msg,
+      latestDate: date
+    };
+  } catch (err) {
+    return {
+      checked: true,
+      hasUpdate: false,
+      installedVersion: INSTALLED_SCRAPER_INFO.version,
+      installedSha: INSTALLED_SCRAPER_INFO.shortSha,
+      error: (err as Error).message
+    };
+  }
+}
+
+export async function applyScraperUpdate(): Promise<{ success: boolean; message: string }> {
+  try {
+    const res = await fetch('http://localhost:8000/updater/update', { method: 'POST' });
+    if (res.ok) {
+      const data = await res.json();
+      return { success: true, message: data.message || 'Scraper updated successfully!' };
+    }
+  } catch (e) {}
+
+  // If local server is not running, open the repository
+  window.open('https://github.com/Suvesh108/jobscrap', '_blank');
+  return { 
+    success: true, 
+    message: 'Opened GitHub repository to download latest release (Local server not running).' 
+  };
+}
