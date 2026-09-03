@@ -415,10 +415,10 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
   }, [groups, filterText]);
 
   return (
-    <div id={id} ref={containerRef} className="relative flex-1 min-w-[200px] h-full">
+    <div id={id} ref={containerRef} className="relative flex-1 min-w-[200px] h-12">
       <div
         onClick={() => setIsOpen(prev => !prev)}
-        className="card rounded-xl px-3.5 py-2 flex items-center justify-between cursor-pointer border transition-all h-full min-h-[46px]"
+        className="card rounded-xl px-3.5 flex items-center justify-between cursor-pointer border transition-all h-12 select-none"
         style={{ borderColor: isOpen ? 'var(--accent-primary)' : 'var(--border-subtle)', background: 'var(--bg-input)' }}
       >
         <div className="flex items-center space-x-2.5 min-w-0 flex-1">
@@ -426,26 +426,53 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
 
           {multi ? (
             values.length > 0 ? (
-              <div className="flex items-center gap-1.5 flex-wrap min-w-0 max-h-[60px] overflow-y-auto custom-scrollbar py-0.5 pr-1">
-                {values.map(val => (
-                  <span
-                    key={val}
-                    className="text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 max-w-[220px] shrink-0"
-                    style={{ background: 'var(--sidebar-item-active)', color: accentColor, border: '1px solid var(--border-glow)' }}
-                    title={val}
-                  >
-                    <span className="truncate">{val}</span>
+              <div className="flex items-center gap-1.5 flex-nowrap overflow-hidden min-w-0">
+                {values.length <= 2 ? (
+                  values.map(val => (
                     <span
-                      onClick={e => {
-                        e.stopPropagation();
-                        onToggle?.(val);
-                      }}
-                      className="hover:text-danger cursor-pointer font-bold shrink-0 ml-0.5"
+                      key={val}
+                      className="text-[11px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1 max-w-[150px] shrink-0"
+                      style={{ background: 'var(--sidebar-item-active)', color: accentColor, border: '1px solid var(--border-glow)' }}
+                      title={val}
                     >
-                      ×
+                      <span className="truncate">{val}</span>
+                      <span
+                        onClick={e => {
+                          e.stopPropagation();
+                          onToggle?.(val);
+                        }}
+                        className="hover:text-danger cursor-pointer font-bold shrink-0 ml-0.5"
+                      >
+                        ×
+                      </span>
                     </span>
-                  </span>
-                ))}
+                  ))
+                ) : (
+                  <>
+                    <span
+                      className="text-[11px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1 max-w-[160px] shrink-0"
+                      style={{ background: 'var(--sidebar-item-active)', color: accentColor, border: '1px solid var(--border-glow)' }}
+                      title={values[0]}
+                    >
+                      <span className="truncate">{values[0]}</span>
+                      <span
+                        onClick={e => {
+                          e.stopPropagation();
+                          onToggle?.(values[0]);
+                        }}
+                        className="hover:text-danger cursor-pointer font-bold shrink-0 ml-0.5"
+                      >
+                        ×
+                      </span>
+                    </span>
+                    <span
+                      className="text-[10px] font-extrabold px-2 py-0.5 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shrink-0 select-none"
+                      title={values.slice(1).join(', ')}
+                    >
+                      +{values.length - 1} more
+                    </span>
+                  </>
+                )}
               </div>
             ) : (
               <span className="text-xs text-text-muted truncate">{placeholder}</span>
@@ -487,8 +514,12 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
       {isOpen && (
         <div
           onClick={e => e.stopPropagation()}
-          className="absolute left-0 w-full sm:min-w-[500px] max-w-[92vw] top-full mt-2 z-[100] rounded-2xl p-3 border shadow-2xl space-y-3 max-h-80 overflow-y-auto custom-scrollbar animate-fade-in"
-          style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)', boxShadow: '0 20px 45px -4px rgba(0, 0, 0, 0.75)' }}
+          className="absolute left-0 w-full sm:w-[580px] max-w-[94vw] top-full mt-2.5 z-[9999] rounded-2xl p-3.5 border shadow-2xl space-y-3 max-h-96 overflow-y-auto custom-scrollbar animate-fade-in"
+          style={{ 
+            background: 'var(--bg-card)', 
+            borderColor: 'var(--border-subtle)', 
+            boxShadow: '0 25px 60px -8px rgba(0, 0, 0, 0.9), 0 0 1px 1px rgba(255, 255, 255, 0.08)' 
+          }}
         >
           <div className="px-1">
             <div className="relative">
@@ -928,7 +959,7 @@ export const SearchView: React.FC = () => {
             HERO COMMAND CENTER: SEARCH BAR & PRESET FILTERS
             ══════════════════════════════════════════════════════════════ */}
         <div 
-          className="card p-6 space-y-5 shadow-2xl border transition-all duration-300 relative overflow-hidden"
+          className="card p-6 space-y-5 shadow-2xl border transition-all duration-300 relative overflow-visible z-30"
           style={{
             background: 'var(--bg-card)',
             borderColor: jobMode === 'tech' ? 'rgba(6, 182, 212, 0.35)' : 'rgba(245, 158, 11, 0.35)',
@@ -984,37 +1015,33 @@ export const SearchView: React.FC = () => {
           </div>
 
           {/* Search Inputs: Roles + Location + Scan Button */}
-          <form onSubmit={handleSearch} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-[1.4fr_1.1fr_auto] gap-3 items-stretch">
-              <div className="h-full">
-                <AutocompleteInput
-                  id="role-input"
-                  multi
-                  values={selectedRoles}
-                  onToggle={handleRoleToggle}
-                  onClearAll={() => setSelectedRoles([])}
-                  placeholder="Select Target Roles (e.g. Software Engineer, Tech Support)..."
-                  icon={<Briefcase className="h-4 w-4" />}
-                  groups={activeRoleGroups}
-                  accentColor={accentColor}
-                />
-              </div>
+          <form onSubmit={handleSearch} className="space-y-4 relative overflow-visible z-20">
+            <div className="grid grid-cols-1 md:grid-cols-[1.4fr_1.1fr_auto] gap-3 items-center">
+              <AutocompleteInput
+                id="role-input"
+                multi
+                values={selectedRoles}
+                onToggle={handleRoleToggle}
+                onClearAll={() => setSelectedRoles([])}
+                placeholder="Select Target Roles (e.g. Software Engineer, Tech Support)..."
+                icon={<Briefcase className="h-4 w-4" />}
+                groups={activeRoleGroups}
+                accentColor={accentColor}
+              />
 
-              <div className="h-full">
-                <AutocompleteInput
-                  id="location-input"
-                  value={locQuery}
-                  onChange={setLocQuery}
-                  placeholder="Location (e.g. Remote, Bengaluru, Pune, Mumbai)"
-                  icon={<MapPin className="h-4 w-4" />}
-                  groups={INDIAN_LOCATIONS}
-                />
-              </div>
+              <AutocompleteInput
+                id="location-input"
+                value={locQuery}
+                onChange={setLocQuery}
+                placeholder="Location (e.g. Remote, Bengaluru, Pune, Mumbai)"
+                icon={<MapPin className="h-4 w-4" />}
+                groups={INDIAN_LOCATIONS}
+              />
 
               <button
                 type="submit"
                 disabled={isLoading}
-                className={`px-6 py-2.5 text-xs font-bold flex items-center justify-center space-x-2 shrink-0 min-h-[46px] h-full cursor-pointer shadow-lg transition-all rounded-xl ${
+                className={`px-6 py-2.5 text-xs font-bold flex items-center justify-center space-x-2 shrink-0 h-12 cursor-pointer shadow-lg transition-all rounded-xl ${
                   isRescan
                     ? 'btn-primary bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500'
                     : 'btn-primary'
