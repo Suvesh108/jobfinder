@@ -1,4 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react';
+
+const normalizeSource = (src?: string): string => {
+  if (!src) return 'Unknown';
+  if (src.toLowerCase() === 'naukri.com' || src.toLowerCase() === 'naukri') return 'Naukri';
+  return src;
+};
+
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type JobApplication, type JobStatus } from '../db/schema';
 import { useUIStore } from '../store/useUIStore';
@@ -7,7 +14,7 @@ import { type JobListing } from '../adapters';
 import { AITailorModal } from './AITailorModal';
 import { verifyJobUrlsBatch, getCachedLiveness, type VerificationStatus } from '../utils/livenessService';
 import { classifyExperience } from '../utils/experienceClassifier';
-import { 
+import {  
   Search, 
   MapPin, 
   Briefcase, 
@@ -22,7 +29,10 @@ import {
   Trash2,
   ShieldCheck,
   ShieldAlert,
-  RefreshCw
+  RefreshCw,
+  Globe,
+  ChevronDown,
+  Check
 } from 'lucide-react';
 
 const PAGE_SIZE = 12;
@@ -57,6 +67,20 @@ export const FoundJobsView: React.FC = () => {
   const [fresherOnly, setFresherOnly] = useState(false);
   const [activeOnly, setActiveOnly] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  // Portal Dropdown State
+  const [isPortalDropdownOpen, setIsPortalDropdownOpen] = useState(false);
+  const portalDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (portalDropdownRef.current && !portalDropdownRef.current.contains(event.target as Node)) {
+        setIsPortalDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
 
   // Liveness Verification State
   const [isVerifying, setIsVerifying] = useState(false);
@@ -77,9 +101,14 @@ export const FoundJobsView: React.FC = () => {
 
   // Sources present in found jobs
   const availableSources = useMemo(() => {
-    const set = new Set<string>();
-    foundJobs.forEach(j => { if (j.source) set.add(j.source); });
-    return Array.from(set);
+    const counts = new Map<string, number>();
+    foundJobs.forEach(j => {
+      const s = normalizeSource(j.source);
+      counts.set(s, (counts.get(s) || 0) + 1);
+    });
+    return Array.from(counts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
   }, [foundJobs]);
 
   // Automatic & Manual URL liveness check
@@ -112,7 +141,7 @@ export const FoundJobsView: React.FC = () => {
         if (!matchesTitle && !matchesCompany && !matchesLoc && !matchesDesc) return false;
       }
 
-      if (filterSource !== 'all' && job.source !== filterSource) return false;
+      if (filterSource !== 'all' && normalizeSource(job.source) !== filterSource) return false;
       if (fresherOnly && !isFresherFriendly(job)) return false;
 
       if (activeOnly) {
@@ -236,18 +265,100 @@ export const FoundJobsView: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-2 overflow-x-auto pb-1 sm:pb-0">
-            {/* Source Filter Dropdown */}
-            <select
-              value={filterSource}
-              onChange={(e) => { setFilterSource(e.target.value); setCurrentPage(1); }}
-              className="text-xs px-2.5 py-1.5 rounded-xl border outline-none bg-surface text-text-primary cursor-pointer shrink-0"
-              style={{ borderColor: 'var(--border-subtle)' }}
-            >
-              <option value="all">All Portals ({foundJobs.length})</option>
-              {availableSources.map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
+            {/* Custom Styled Portal Filter Dropdown */}
+            <div className="relative shrink-0" ref={portalDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setIsPortalDropdownOpen(!isPortalDropdownOpen)}
+                className="text-xs px-3 py-1.5 rounded-xl border flex items-center space-x-2 bg-surface text-text-primary hover:border-cyan-500/50 transition-all cursor-pointer shadow-xs select-none"
+                style={{ 
+                  borderColor: isPortalDropdownOpen ? 'var(--status-info)' : 'var(--border-subtle)',
+                  background: 'var(--bg-surface-raised)'
+                }}
+              >
+                <Globe size={13} className="text-cyan-400 shrink-0" />
+                <span className="font-semibold">
+                  {filterSource === 'all' ? `All Portals (${foundJobs.length})` : filterSource}
+                </span>
+                <ChevronDown 
+                  size={13} 
+                  className={`text-text-muted transition-transform duration-200 shrink-0 ${isPortalDropdownOpen ? 'rotate-180 text-cyan-400' : ''}`} 
+                />
+              </button>
+
+              {isPortalDropdownOpen && (
+                <div 
+                  className="absolute right-0 top-full mt-1.5 w-56 rounded-2xl border shadow-2xl p-1.5 z-50 animate-fade-in backdrop-blur-xl space-y-1"
+                  style={{ 
+                    background: 'var(--bg-card)', 
+                    borderColor: 'var(--border-subtle)',
+                    boxShadow: '0 16px 36px -4px rgba(0, 0, 0, 0.5)'
+                  }}
+                >
+                  {/* Option: All Portals */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilterSource('all');
+                      setIsPortalDropdownOpen(false);
+                      setCurrentPage(1);
+                    }}
+                    className={`w-full text-xs px-3 py-2 rounded-xl flex items-center justify-between font-semibold transition-all cursor-pointer ${
+                      filterSource === 'all'
+                        ? 'bg-cyan-500/15 text-cyan-400 font-bold'
+                        : 'text-text-primary hover:bg-surface-raised'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <Globe size={13} className={filterSource === 'all' ? 'text-cyan-400' : 'text-text-muted'} />
+                      <span>All Portals</span>
+                    </div>
+                    <div className="flex items-center space-x-1.5">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-surface border" style={{ borderColor: 'var(--border-subtle)' }}>
+                        {foundJobs.length}
+                      </span>
+                      {filterSource === 'all' && <Check size={13} className="text-cyan-400" />}
+                    </div>
+                  </button>
+
+                  <div className="border-t my-1 opacity-60" style={{ borderColor: 'var(--border-subtle)' }} />
+
+                  {/* Portal List (with Naukri.com unified into Naukri) */}
+                  <div className="max-h-60 overflow-y-auto space-y-0.5 custom-scrollbar pr-0.5">
+                    {availableSources.map(s => {
+                      const isSelected = filterSource === s.name;
+                      return (
+                        <button
+                          key={s.name}
+                          type="button"
+                          onClick={() => {
+                            setFilterSource(s.name);
+                            setIsPortalDropdownOpen(false);
+                            setCurrentPage(1);
+                          }}
+                          className={`w-full text-xs px-3 py-2 rounded-xl flex items-center justify-between font-semibold transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-cyan-500/15 text-cyan-400 font-bold'
+                              : 'text-text-primary hover:bg-surface-raised'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-2 truncate">
+                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0" />
+                            <span className="truncate">{s.name}</span>
+                          </div>
+                          <div className="flex items-center space-x-1.5 shrink-0">
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-surface border" style={{ borderColor: 'var(--border-subtle)' }}>
+                              {s.count}
+                            </span>
+                            {isSelected && <Check size={13} className="text-cyan-400" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Experience Filter Toggle */}
             <button

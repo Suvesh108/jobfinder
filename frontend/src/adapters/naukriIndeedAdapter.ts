@@ -129,7 +129,7 @@ const generateNaukriMock = (query: string, location: string): JobListing[] => {
     location: capL !== 'India' && i % 2 === 0 ? capL : c.loc,
     salary: c.sal,
     url: `https://www.naukri.com/job-listings-${c.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now()}-${i}`,
-    source: 'Naukri.com',
+    source: 'Naukri',
     postedDate: getFreshDate(i % 3),
     description: `Naukri verified opening: ${c.name} is hiring for ${c.role}. Hands-on coding with ${capQ}, data structures, and agile development.`
   }));
@@ -262,7 +262,7 @@ export const apnaAdapter: JobAdapter = {
 
 export const naukriAdapter: JobAdapter = {
   id: 'naukri',
-  name: 'Naukri.com',
+  name: 'Naukri',
   fetchJobs: (query, location, postedAfter) => fetchFromJobScrap('naukri', query, location, postedAfter, generateNaukriMock)
 };
 

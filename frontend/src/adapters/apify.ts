@@ -7,7 +7,7 @@ import type { JobAdapter, JobListing } from './types';
 const ACTOR_CONFIG = {
   naukri: {
     actorId: 'epicscrapers/naukri-scraper',
-    name: 'Naukri.com',
+    name: 'Naukri',
   },
   indeed: {
     actorId: 'misceres/indeed-scraper',
@@ -142,7 +142,7 @@ const normalizeApifyResult = (source: 'naukri' | 'indeed' | 'linkedin', item: an
         location: item.locationLabel || item.location || 'India',
         salary: item.salaryLabel || 'Not Specified',
         url: item.jobURL || item.jobUrl || item.url || '',
-        source: 'Naukri.com',
+        source: 'Naukri',
         postedDate: parseRelativeDate(item.postedAt || item.postedDate),
         description: item.jobDescription || item.description || item.snippet || '',
       };
@@ -204,7 +204,7 @@ const generateNaukriMock = (query: string, location: string): JobListing[] => {
       location: capLoc,
       salary: '8 - 13 LPA',
       url: `https://www.naukri.com/job-listings-mock-${Date.now()}-1`,
-      source: 'Naukri.com',
+      source: 'Naukri',
       postedDate: new Date().toISOString().split('T')[0],
       description: `EduTech/Service requirements. We are looking for an experienced ${capQuery} engineer to develop responsive dashboards. Skills: Javascript, React, TypeScript.`,
     },
@@ -214,7 +214,7 @@ const generateNaukriMock = (query: string, location: string): JobListing[] => {
       location: capLoc,
       salary: '10 - 15 LPA',
       url: `https://www.naukri.com/job-listings-mock-${Date.now()}-2`,
-      source: 'Naukri.com',
+      source: 'Naukri',
       postedDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       description: `Hiring senior resource for development of responsive web applications. Ideal candidate must possess strong experience in ${capQuery} and state management.`,
     }
@@ -262,7 +262,7 @@ const generateLinkedInMock = (query: string, location: string): JobListing[] => 
 // --- NAUKRI ADAPTER ---
 export const naukriAdapter: JobAdapter = {
   id: 'naukri',
-  name: 'Naukri.com',
+  name: 'Naukri',
   fetchJobs: async (query: string, location: string): Promise<JobListing[]> => {
     const cached = getCachedResults('naukri', query, location);
     if (cached) return cached;
