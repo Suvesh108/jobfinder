@@ -1,4 +1,4 @@
-import { fetchLatestRelease, downloadApkInternally, type ReleaseInfo, checkJobScrapOTAUpdate, triggerJobScrapOTAUpdate, type JobScrapOTAStatus } from '../utils/updaterService';
+import { fetchLatestRelease, downloadApkInternally, type ReleaseInfo } from '../utils/updaterService';
 import React, { useState, useEffect } from 'react';
 import { db, getUserProfile, saveUserProfile, type JobApplication, type UserProfile } from '../db/schema';
 import { useUIStore, type AppTheme } from '../store/useUIStore';
@@ -53,12 +53,6 @@ export const SettingsView: React.FC = () => {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [dbSuccessMessage, setDbSuccessMessage] = useState<string | null>(null);
   const [jobspyStatus, setJobspyStatus] = useState<'checking' | 'running' | 'offline'>('checking');
-  // JobScrap In-App OTA Update State
-  const [jobscrapOTA, setJobscrapOTA] = useState<JobScrapOTAStatus | null>(null);
-  const [isCheckingJobscrapOTA, setIsCheckingJobscrapOTA] = useState(false);
-  const [isUpdatingJobscrapOTA, setIsUpdatingJobscrapOTA] = useState(false);
-  const [otaUpdateSuccess, setOtaUpdateSuccess] = useState<string | null>(null);
-  const [otaUpdateError, setOtaUpdateError] = useState<string | null>(null);
 
 
   // AI Configuration State
@@ -110,7 +104,6 @@ export const SettingsView: React.FC = () => {
 
     // Load Database Jobs
     db.jobs.toArray().then(setAllJobs);
-    checkJobScrapOTAUpdate().then(setJobscrapOTA).catch(() => {});
   }, []);
 
   const selectedProviderConfig = AI_PROVIDERS.find(p => p.id === aiProvider) || AI_PROVIDERS[0];
@@ -223,38 +216,6 @@ export const SettingsView: React.FC = () => {
       setDownloadDone(true);
     }
   };
-
-  
-  const handleCheckJobScrapOTA = async () => {
-    setIsCheckingJobscrapOTA(true);
-    setOtaUpdateSuccess(null);
-    setOtaUpdateError(null);
-    try {
-      const status = await checkJobScrapOTAUpdate();
-      setJobscrapOTA(status);
-    } catch (err) {
-      setOtaUpdateError((err as Error).message);
-    } finally {
-      setIsCheckingJobscrapOTA(false);
-    }
-  };
-
-  const handleTriggerJobScrapOTA = async () => {
-    setIsUpdatingJobscrapOTA(true);
-    setOtaUpdateSuccess(null);
-    setOtaUpdateError(null);
-    try {
-      const res = await triggerJobScrapOTAUpdate();
-      setOtaUpdateSuccess(res.message || 'JobScrap engine successfully updated to latest version!');
-      const updated = await checkJobScrapOTAUpdate();
-      setJobscrapOTA(updated);
-    } catch (err) {
-      setOtaUpdateError((err as Error).message);
-    } finally {
-      setIsUpdatingJobscrapOTA(false);
-    }
-  };
-
   const handleDaysChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const days = parseInt(e.target.value, 10);
     if (!isNaN(days) && days > 0) {
@@ -992,7 +953,7 @@ export const SettingsView: React.FC = () => {
                 </div>
               </div>
 
-              {/* 2. JobScrap Scraper Engine 1-Click OTA Updater Card */}
+              {/* 2. JobScrap Custom Scraping Engine Card */}
               <div className="card p-5 sm:p-6 rounded-2xl border space-y-4 shadow-sm" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-center space-x-3.5">
@@ -1003,7 +964,7 @@ export const SettingsView: React.FC = () => {
                       <div className="flex items-center space-x-2">
                         <h4 className="text-sm font-bold text-text-primary font-display">JobScrap Custom Scraping Engine</h4>
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                          {jobscrapOTA?.installed.version || 'v0.2'} ({jobscrapOTA?.installed.shortCommit || '8331be0'})
+                          v0.2 (Active)
                         </span>
                       </div>
                       <p className="text-xs text-text-muted mt-0.5">
@@ -1012,64 +973,17 @@ export const SettingsView: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={handleCheckJobScrapOTA}
-                      disabled={isCheckingJobscrapOTA || isUpdatingJobscrapOTA}
-                      className="btn-secondary text-xs px-3.5 py-2 font-bold flex items-center justify-center space-x-1.5 cursor-pointer hover:scale-105 transition-all"
-                    >
-                      <RefreshCw size={13} className={isCheckingJobscrapOTA ? 'animate-spin' : ''} />
-                      <span>{isCheckingJobscrapOTA ? 'Checking GitHub...' : 'Check Updates'}</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleTriggerJobScrapOTA}
-                      disabled={isUpdatingJobscrapOTA || isCheckingJobscrapOTA}
-                      className="btn-primary text-xs px-4 py-2 font-bold flex items-center justify-center space-x-1.5 cursor-pointer hover:scale-105 transition-all shadow-md"
-                    >
-                      <Download size={13} className={isUpdatingJobscrapOTA ? 'animate-bounce' : ''} />
-                      <span>{isUpdatingJobscrapOTA ? 'Updating Scraper...' : '1-Click OTA Update'}</span>
-                    </button>
-                  </div>
+                  <a
+                    href="https://github.com/Suvesh108/jobscrap"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-secondary text-xs px-4 py-2 flex items-center justify-center space-x-1.5 font-bold shrink-0 hover:scale-105 transition-all"
+                  >
+                    <Globe size={14} />
+                    <span>JobScrap Repository</span>
+                    <ExternalLink size={12} />
+                  </a>
                 </div>
-
-                {/* Updating animation banner */}
-                {isUpdatingJobscrapOTA && (
-                  <div className="p-3.5 rounded-xl border text-xs font-semibold flex items-center space-x-2.5 bg-cyan-500/10 text-cyan-400 border-cyan-500/30 animate-fade-in">
-                    <RefreshCw size={15} className="animate-spin shrink-0" />
-                    <span>Pulling latest scraper files from github.com/Suvesh108/jobscrap and hot-reloading backend on Port 8000...</span>
-                  </div>
-                )}
-
-                {/* Success alert */}
-                {otaUpdateSuccess && (
-                  <div className="p-3.5 rounded-xl border text-xs font-semibold flex items-center space-x-2 bg-emerald-500/10 text-emerald-400 border-emerald-500/30 animate-fade-in">
-                    <CheckCircle2 size={16} className="shrink-0" />
-                    <span>{otaUpdateSuccess}</span>
-                  </div>
-                )}
-
-                {/* Error alert */}
-                {otaUpdateError && (
-                  <div className="p-3.5 rounded-xl border text-xs font-semibold flex items-center space-x-2 bg-rose-500/10 text-rose-400 border-rose-500/30 animate-fade-in">
-                    <Info size={16} className="shrink-0" />
-                    <span>Scraper OTA Update Error: {otaUpdateError}</span>
-                  </div>
-                )}
-
-                {/* Version and Commit Details */}
-                {jobscrapOTA && !isUpdatingJobscrapOTA && !otaUpdateSuccess && (
-                  <div className="p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-2" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}>
-                    <div className="flex items-center space-x-2 text-text-muted">
-                      <span className="font-mono text-cyan-400 font-bold">SHA: {jobscrapOTA.installed.shortCommit}</span>
-                      <span>•</span>
-                      <span>{jobscrapOTA.installed.message}</span>
-                    </div>
-                    <span className="text-[11px] text-text-muted font-mono">Synced: {jobscrapOTA.installed.date}</span>
-                  </div>
-                )}
               </div>
 
               {/* 3. Open Source Repository Card */}
