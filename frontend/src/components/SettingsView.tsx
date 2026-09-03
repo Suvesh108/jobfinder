@@ -972,20 +972,20 @@ export const SettingsView: React.FC = () => {
                 {/* Architecture Highlights Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
                   <div className="p-3 rounded-xl bg-surface-raised border space-y-1" style={{ borderColor: 'var(--border-subtle)' }}>
-                    <span className="text-[10px] text-text-muted uppercase font-bold tracking-wider block">UI Framework</span>
-                    <span className="text-xs font-bold text-text-primary block">React 19 + Vite</span>
+                    <span className="text-[10px] text-text-muted uppercase font-bold tracking-wider block">UI &amp; Mobile</span>
+                    <span className="text-xs font-bold text-text-primary block">React 19 + Capacitor</span>
                   </div>
                   <div className="p-3 rounded-xl bg-surface-raised border space-y-1" style={{ borderColor: 'var(--border-subtle)' }}>
                     <span className="text-[10px] text-text-muted uppercase font-bold tracking-wider block">Scraper Core</span>
-                    <span className="text-xs font-bold text-text-primary block">Python JobScrap</span>
+                    <span className="text-xs font-bold text-text-primary block">9-Portal Aggregator</span>
                   </div>
                   <div className="p-3 rounded-xl bg-surface-raised border space-y-1" style={{ borderColor: 'var(--border-subtle)' }}>
-                    <span className="text-[10px] text-text-muted uppercase font-bold tracking-wider block">Database</span>
-                    <span className="text-xs font-bold text-text-primary block">Dexie IndexedDB</span>
+                    <span className="text-[10px] text-text-muted uppercase font-bold tracking-wider block">ATS Resume</span>
+                    <span className="text-xs font-bold text-text-primary block">Jake's LaTeX Studio</span>
                   </div>
                   <div className="p-3 rounded-xl bg-surface-raised border space-y-1" style={{ borderColor: 'var(--border-subtle)' }}>
-                    <span className="text-[10px] text-text-muted uppercase font-bold tracking-wider block">Android Native</span>
-                    <span className="text-xs font-bold text-text-primary block">Capacitor Native</span>
+                    <span className="text-[10px] text-text-muted uppercase font-bold tracking-wider block">Data Privacy</span>
+                    <span className="text-xs font-bold text-text-primary block">100% Local IndexedDB</span>
                   </div>
                 </div>
               </div>
