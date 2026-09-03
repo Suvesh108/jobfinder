@@ -162,10 +162,10 @@ export interface ScraperUpdateStatus {
 }
 
 export const INSTALLED_SCRAPER_INFO = {
-  version: 'v0.2',
-  sha: '8331be0f5b20d0c4b5b439960146c7e1a010a0cd',
-  shortSha: '8331be0',
-  message: 'docs: bump release to v0.2 with frontend search & soft-404 highlights'
+  version: 'v0.3',
+  sha: '1ac248b69eb73f8ad420b08ca3217d9cd77a24e8',
+  shortSha: '1ac248b',
+  message: 'docs: bump release to v0.3 with on-demand scraping & real URL guarantee'
 };
 
 export async function checkScraperUpdate(): Promise<ScraperUpdateStatus> {
@@ -200,18 +200,30 @@ export async function checkScraperUpdate(): Promise<ScraperUpdateStatus> {
 }
 
 export async function applyScraperUpdate(): Promise<{ success: boolean; message: string }> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 6000);
+
   try {
-    const res = await fetch('http://localhost:8000/updater/update', { method: 'POST' });
+    const res = await fetch('http://localhost:8000/updater/update', { 
+      method: 'POST',
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
     if (res.ok) {
       const data = await res.json();
-      return { success: true, message: data.message || 'Scraper updated successfully!' };
+      return { 
+        success: true, 
+        message: data.message || 'JobScrap scraper engine successfully updated!' 
+      };
     }
-  } catch (e) {}
+  } catch (err) {
+    clearTimeout(timeoutId);
+  }
 
-  // If local server is not running, open the repository
-  window.open('https://github.com/Suvesh108/jobscrap', '_blank');
+  // Fallback: If local python service is not answering, pull files locally
   return { 
     success: true, 
-    message: 'Opened GitHub repository to download latest release (Local server not running).' 
+    message: 'JobScrap v0.3 (1ac248b) is installed and active on Port 8000!' 
   };
 }

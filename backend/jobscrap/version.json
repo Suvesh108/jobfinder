@@ -1,7 +1,7 @@
 {
-  "version": "v0.2",
-  "commit": "8331be0f5b20d0c4b5b439960146c7e1a010a0cd",
-  "shortCommit": "8331be0",
+  "version": "v0.3",
+  "commit": "1ac248b69eb73f8ad420b08ca3217d9cd77a24e8",
+  "shortCommit": "1ac248b",
   "date": "2026-09-03",
-  "message": "docs: bump release to v0.2 with frontend search & soft-404 highlights"
+  "message": "docs: bump release to v0.3 with on-demand scraping & real URL guarantee"
 }

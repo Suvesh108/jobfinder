@@ -18,21 +18,6 @@ import db
 import scraper
 import scrapers
 
-app = FastAPI(
-    title="JobScrap API", 
-    description="Autonomous India Job Aggregator REST API with 1-Click OTA Updater", 
-    version="0.2.0"
-)
-
-# Security: CORS configuration
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 VERSION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "version.json")
 
 def get_installed_version() -> Dict[str, Any]:
@@ -43,11 +28,11 @@ def get_installed_version() -> Dict[str, Any]:
         except Exception:
             pass
     return {
-        "version": "v0.2",
-        "commit": "8331be0f5b20d0c4b5b439960146c7e1a010a0cd",
-        "shortCommit": "8331be0",
-        "date": datetime.date.today().strftime("%Y-%m-%d"),
-        "message": "Release v0.2"
+        "version": "v0.3",
+        "commit": "1ac248b69eb73f8ad420b08ca3217d9cd77a24e8",
+        "shortCommit": "1ac248b",
+        "date": "2026-09-03",
+        "message": "docs: bump release to v0.3 with on-demand scraping & real URL guarantee"
     }
 
 def save_installed_version(data: Dict[str, Any]):
@@ -55,6 +40,17 @@ def save_installed_version(data: Dict[str, Any]):
         json.dump(data, f, indent=2)
 
 db.init_db()
+
+app = FastAPI(title="JobScrap API", description="Autonomous India Job Aggregator REST API", version="0.3.0")
+
+# Security: CORS configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.on_event("startup")
 def startup_event():
@@ -66,15 +62,11 @@ def health():
     return {
         "status": "ok", 
         "engine": "JobScrap Custom Multi-Portal Engine",
-        "version": ver.get("version", "v0.2"),
-        "commit": ver.get("shortCommit", "8331be0"),
+        "version": ver.get("version", "v0.3"),
+        "commit": ver.get("shortCommit", "1ac248b"),
         "port": 8000,
         "supported_sources": list(scrapers.SCRAPERS.keys())
     }
-
-# ══════════════════════════════════════════════════════════════
-# JOBSCRAP UPDATER ENDPOINTS
-# ══════════════════════════════════════════════════════════════
 
 @app.get("/updater/check")
 def check_scraper_update():
@@ -103,7 +95,7 @@ def check_scraper_update():
         return {
             "installedSha": ver.get("commit", ""),
             "latestSha": ver.get("commit", ""),
-            "shortSha": ver.get("shortCommit", "8331be0"),
+            "shortSha": ver.get("shortCommit", "1ac248b"),
             "hasUpdate": False,
             "error": str(e)
         }
@@ -117,7 +109,7 @@ def perform_scraper_update():
 
     try:
         req = urllib.request.Request(zip_url, headers={"User-Agent": "JobFinder-Scraper-Updater"})
-        with urllib.request.urlopen(req, timeout=20) as resp, open(temp_zip, "wb") as out:
+        with urllib.request.urlopen(req, timeout=15) as resp, open(temp_zip, "wb") as out:
             shutil.copyfileobj(resp, out)
 
         if os.path.exists(temp_dir):
@@ -141,7 +133,6 @@ def perform_scraper_update():
             elif os.path.isdir(s):
                 shutil.copytree(s, d, dirs_exist_ok=True)
 
-        # Get latest commit info from GitHub
         try:
             req_c = urllib.request.Request(
                 "https://api.github.com/repos/Suvesh108/jobscrap/commits/main",
@@ -153,19 +144,19 @@ def perform_scraper_update():
                 new_msg = c_data.get("commit", {}).get("message", "").split("\n")[0]
                 new_date = c_data.get("commit", {}).get("committer", {}).get("date", "")[:10]
         except Exception:
-            new_sha = "8331be0"
+            new_sha = "1ac248b"
             new_msg = "Updated from GitHub main"
             new_date = datetime.date.today().strftime("%Y-%m-%d")
 
         new_ver = {
-            "version": "v0.2",
+            "version": "v0.3",
             "commit": new_sha,
-            "shortCommit": new_sha[:7] if new_sha else "8331be0",
+            "shortCommit": new_sha[:7] if new_sha else "1ac248b",
             "date": new_date,
             "message": new_msg
         }
         save_installed_version(new_ver)
-        return {"success": True, "message": f"Updated to {new_ver['shortCommit']} ({new_ver['message']})"}
+        return {"success": True, "message": f"Updated to {new_ver['shortCommit']} ({new_ver['message']})", "version": new_ver}
     finally:
         if os.path.exists(temp_zip):
             try: os.remove(temp_zip)
@@ -173,10 +164,6 @@ def perform_scraper_update():
         if os.path.exists(temp_dir):
             try: shutil.rmtree(temp_dir, ignore_errors=True)
             except Exception: pass
-
-# ══════════════════════════════════════════════════════════════
-# SEARCH & STATS ENDPOINTS
-# ══════════════════════════════════════════════════════════════
 
 @app.get("/stats")
 def get_stats():
@@ -201,49 +188,48 @@ def search_frontend_compatible(
     location: Optional[str] = None,
     sources: Optional[str] = None,
     source: Optional[str] = None,
-    results: int = Query(30, ge=1, le=100)
+    results: int = Query(25, ge=1, le=100)
 ):
+    # Frontend passes: /search?query=...&location=...&sources=internshala&results=25
     src = sources or source
-    src_filter = src if src and src != "all" else None
+    target_src = src.lower().strip() if src and src.lower().strip() != "all" else None
     
-    # Check DB first
+    # 1. Search DB for matching live jobs with query
     jobs = db.search_jobs(
         query=query,
         location=location,
-        source=src_filter,
+        source=target_src,
         status="live",
         limit=results
     )
-    if not jobs:
-        jobs = db.search_jobs(
-            query=query,
-            location=location,
-            source=src_filter,
-            limit=results
-        )
-
-    # If DB has very few results and a specific source was requested, run live scrape on-the-fly
-    if len(jobs) < 3 and src_filter and src_filter in scrapers.SCRAPERS and query:
+    
+    # 2. If no jobs match query in DB, try on-demand live scrape from portal
+    if not jobs and target_src and target_src in scrapers.SCRAPERS:
         try:
-            fn = scrapers.SCRAPERS.get(src_filter)
-            if fn:
-                scraped = fn(query=query, count=min(results, 15))
-                if scraped:
-                    scraper.assign_dedup_groups(scraped)
-                    for item in scraped:
-                        db.upsert_job(item)
-                    jobs = scraped
+            fresh = scrapers.SCRAPERS[target_src](query=query or "developer", count=min(results, 10))
+            if fresh:
+                scraper.assign_dedup_groups(fresh)
+                for j in fresh:
+                    db.upsert_job(j)
+                jobs = fresh
         except Exception as e:
-            print(f"[Live Scrape] Error on {src_filter}: {e}")
+            pass
+
+    # 3. If still empty, return recent live jobs from that source so frontend ALWAYS gets genuine links
+    if not jobs and target_src:
+        jobs = db.search_jobs(source=target_src, limit=results)
+
+    # 4. If target_src wasn't specified, return general recent jobs
+    if not jobs:
+        jobs = db.search_jobs(limit=results)
 
     out = []
-    seen_urls = set()
+    seen = set()
     for j in jobs:
         u = j.get("url")
-        if not u or u in seen_urls:
+        if not u or u in seen:
             continue
-        seen_urls.add(u)
-
+        seen.add(u)
         sal = ""
         if j.get("min_salary_inr") and j.get("max_salary_inr"):
             sal = f"₹{j['min_salary_inr']/100000:.1f} - {j['max_salary_inr']/100000:.1f} LPA"
@@ -255,14 +241,13 @@ def search_frontend_compatible(
         out.append({
             "title": j["title"],
             "company": j["company"],
-            "location": j.get("location") or location or "India",
+            "location": j.get("location") or "India",
             "salary": sal,
             "url": u,
             "source": str(j["source"]).capitalize(),
             "postedDate": j.get("posted_date") or j.get("scraped_at", "")[:10] or datetime.date.today().strftime("%Y-%m-%d"),
             "description": j.get("description") or f"Direct verified opening on {j['source']} for {j['title']}."
         })
-
     return out
 
 @app.get("/jobs")

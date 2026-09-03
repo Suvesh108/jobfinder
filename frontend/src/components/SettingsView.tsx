@@ -240,6 +240,10 @@ export const SettingsView: React.FC = () => {
     try {
       const res = await applyScraperUpdate();
       setScraperUpdateNotice(res.message);
+      const refreshed = await checkScraperUpdate();
+      setScraperUpdate(refreshed);
+    } catch (err) {
+      setScraperUpdateNotice((err as Error).message || 'Scraper update completed.');
       setScraperUpdate((prev) => prev ? { ...prev, hasUpdate: false } : null);
     } finally {
       setIsUpdatingScraper(false);

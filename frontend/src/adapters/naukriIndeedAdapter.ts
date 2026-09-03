@@ -206,7 +206,7 @@ const fetchFromJobScrap = async (
   query: string,
   location: string,
   _postedAfter?: string,
-  mockFallback?: (q: string, l: string) => JobListing[]
+  _mockFallback?: (q: string, l: string) => JobListing[]
 ): Promise<JobListing[]> => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000);
