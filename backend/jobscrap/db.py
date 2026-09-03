@@ -103,14 +103,34 @@ def search_jobs(
     conditions = []
     params = []
     if query:
-        conditions.append("(title LIKE ? OR description LIKE ?)")
-        params.extend([f"%{query}%", f"%{query}%"])
-    if location:
-        conditions.append("location LIKE ?")
-        params.append(f"%{location}%")
+        words = [w.strip() for w in query.split() if len(w.strip()) > 2]
+        if words:
+            word_clauses = " OR ".join(["title LIKE ? OR description LIKE ?" for _ in words])
+            conditions.append(f"({word_clauses})")
+            for w in words:
+                params.extend([f"%{w}%", f"%{w}%"])
+        else:
+            conditions.append("(title LIKE ? OR description LIKE ?)")
+            params.extend([f"%{query}%", f"%{query}%"])
+
+    if location and location.lower() not in ("all", "india"):
+        loc_clean = location.split(',')[0].strip()
+        loc_alts = [loc_clean]
+        if 'bengaluru' in loc_clean.lower() or 'bangalore' in loc_clean.lower():
+            loc_alts = ['Bengaluru', 'Bangalore']
+        elif 'delhi' in loc_clean.lower() or 'ncr' in loc_clean.lower():
+            loc_alts = ['Delhi', 'Noida', 'Gurgaon', 'Gurugram']
+        elif 'mumbai' in loc_clean.lower() or 'bombay' in loc_clean.lower():
+            loc_alts = ['Mumbai', 'Bombay']
+        
+        loc_clauses = " OR ".join(["location LIKE ?" for _ in loc_alts])
+        conditions.append(f"({loc_clauses} OR location LIKE '%Remote%' OR location LIKE '%India%' OR location LIKE '%Anywhere%')")
+        for alt in loc_alts:
+            params.append(f"%{alt}%")
+
     if source:
         conditions.append("source = ?")
-        params.append(source)
+        params.append(source.lower().strip())
     if min_salary is not None:
         conditions.append("min_salary_inr >= ?")
         params.append(min_salary)

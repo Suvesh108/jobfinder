@@ -1,7 +1,7 @@
 {
-  "version": "v0.3",
-  "commit": "1ac248b69eb73f8ad420b08ca3217d9cd77a24e8",
-  "shortCommit": "1ac248b",
+  "version": "v0.4",
+  "commit": "c9a1ae3e09ae8028bb44c60b2c59b9dac2411957",
+  "shortCommit": "c9a1ae3",
   "date": "2026-09-03",
-  "message": "docs: bump release to v0.3 with on-demand scraping & real URL guarantee"
+  "message": "docs: bump release to v0.4 with 9-platform sync & auto-adapter hydration"
 }

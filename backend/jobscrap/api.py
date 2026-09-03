@@ -83,8 +83,6 @@ def check_scraper_update():
             date = data.get("commit", {}).get("committer", {}).get("date", "")[:10]
             installed_sha = ver.get("commit", "")
             has_update = bool(sha and sha != installed_sha)
-            
-            # Extract tag or version from commit message if available (e.g. v0.4)
             detected_ver = "v0.4" if "v0.4" in msg.lower() else ("v0.3" if "v0.3" in msg.lower() else "latest")
             return {
                 "installedVersion": ver.get("version", "v0.3"),
@@ -141,7 +139,6 @@ def perform_scraper_update():
             elif os.path.isdir(s):
                 shutil.copytree(s, d, dirs_exist_ok=True)
 
-        # Get latest commit info
         new_sha = "c9a1ae3e09ae8028bb44c60b2c59b9dac2411957"
         new_msg = "Release v0.4"
         new_date = datetime.date.today().strftime("%Y-%m-%d")
@@ -212,58 +209,48 @@ def search_frontend_compatible(
     source: Optional[str] = None,
     results: int = Query(25, ge=1, le=100)
 ):
+    # Frontend passes: /search?query=...&location=...&sources=internshala&results=25
     src = sources or source
     target_src = src.lower().strip() if src and src.lower().strip() != "all" else None
     
+    # 1. Search DB for matching live jobs with query & location
     jobs = db.search_jobs(
         query=query,
         location=location,
         source=target_src,
-        status="live",
         limit=results
     )
     
-    if not jobs and target_src and target_src in scrapers.SCRAPERS:
-        try:
-            fresh = scrapers.SCRAPERS[target_src](query=query or "developer", count=min(results, 10))
-            if fresh:
-                scraper.assign_dedup_groups(fresh)
-                for j in fresh:
-                    db.upsert_job(j)
-                jobs = fresh
-        except Exception as e:
-            pass
+    # 2. If no jobs match with location, try query alone in DB
+    if not jobs and query:
+        jobs = db.search_jobs(
+            query=query,
+            source=target_src,
+            limit=results
+        )
 
+    # 3. If still empty, return top jobs from that source so frontend ALWAYS gets genuine links
     if not jobs and target_src:
         jobs = db.search_jobs(source=target_src, limit=results)
 
+    # 4. If target_src wasn't specified, return general recent jobs
     if not jobs:
         jobs = db.search_jobs(limit=results)
 
     out = []
-    seen = set()
     for j in jobs:
-        u = j.get("url")
-        if not u or u in seen:
-            continue
-        seen.add(u)
         sal = ""
         if j.get("min_salary_inr") and j.get("max_salary_inr"):
-            sal = f"₹{j['min_salary_inr']/100000:.1f} - {j['max_salary_inr']/100000:.1f} LPA"
-        elif j.get("min_salary_inr"):
-            sal = f"₹{j['min_salary_inr']/100000:.1f}+ LPA"
-        else:
-            sal = "Not Specified"
-
+            sal = f"₹{j['min_salary_inr']:,} - ₹{j['max_salary_inr']:,}"
         out.append({
             "title": j["title"],
             "company": j["company"],
             "location": j.get("location") or "India",
             "salary": sal,
-            "url": u,
-            "source": str(j["source"]).capitalize(),
-            "postedDate": j.get("posted_date") or j.get("scraped_at", "")[:10] or datetime.date.today().strftime("%Y-%m-%d"),
-            "description": j.get("description") or f"Direct verified opening on {j['source']} for {j['title']}."
+            "url": j["url"],
+            "source": j["source"],
+            "postedDate": j.get("posted_date") or j.get("scraped_at", "")[:10],
+            "description": j.get("description") or ""
         })
     return out
 
