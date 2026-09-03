@@ -415,10 +415,10 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
   }, [groups, filterText]);
 
   return (
-    <div id={id} ref={containerRef} className="relative flex-1 min-w-[200px]">
+    <div id={id} ref={containerRef} className="relative flex-1 min-w-[200px] h-full">
       <div
         onClick={() => setIsOpen(prev => !prev)}
-        className="card rounded-xl px-3.5 py-2.5 flex items-center justify-between cursor-pointer border transition-all"
+        className="card rounded-xl px-3.5 py-2 flex items-center justify-between cursor-pointer border transition-all h-full min-h-[46px]"
         style={{ borderColor: isOpen ? 'var(--accent-primary)' : 'var(--border-subtle)', background: 'var(--bg-input)' }}
       >
         <div className="flex items-center space-x-2.5 min-w-0 flex-1">
@@ -426,20 +426,21 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
 
           {multi ? (
             values.length > 0 ? (
-              <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap min-w-0 max-h-[60px] overflow-y-auto custom-scrollbar py-0.5 pr-1">
                 {values.map(val => (
                   <span
                     key={val}
-                    className="text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1"
+                    className="text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 max-w-[220px] shrink-0"
                     style={{ background: 'var(--sidebar-item-active)', color: accentColor, border: '1px solid var(--border-glow)' }}
+                    title={val}
                   >
-                    <span>{val}</span>
+                    <span className="truncate">{val}</span>
                     <span
                       onClick={e => {
                         e.stopPropagation();
                         onToggle?.(val);
                       }}
-                      className="hover:text-danger cursor-pointer font-bold"
+                      className="hover:text-danger cursor-pointer font-bold shrink-0 ml-0.5"
                     >
                       ×
                     </span>
@@ -465,54 +466,61 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
           )}
         </div>
 
-        <div className="flex items-center space-x-1 shrink-0 ml-2">
+        <div className="flex items-center space-x-1.5 shrink-0 ml-2">
           {multi && values.length > 0 && (
             <span
               onClick={e => {
                 e.stopPropagation();
                 onClearAll?.();
               }}
-              className="text-[10px] font-bold text-text-muted hover:text-danger px-1 cursor-pointer"
-              title="Clear selected"
+              className="text-[10px] font-bold text-text-muted hover:text-danger px-1.5 py-0.5 rounded bg-surface border hover:border-red-500/30 cursor-pointer transition-colors"
+              style={{ borderColor: 'var(--border-subtle)' }}
+              title="Clear all selected"
             >
               Clear
             </span>
           )}
-          <ChevronDown className={`h-3.5 w-3.5 text-text-muted transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+          <ChevronDown className={`h-3.5 w-3.5 text-text-muted transition-transform duration-200 ${isOpen ? 'rotate-180 text-cyan-400' : ''}`} />
         </div>
       </div>
 
       {isOpen && (
         <div
-          className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-2xl p-3 border shadow-2xl space-y-3 max-h-72 overflow-y-auto animate-fade-in"
-          style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)', boxShadow: 'var(--shadow-xl)' }}
+          onClick={e => e.stopPropagation()}
+          className="absolute left-0 w-full sm:min-w-[500px] max-w-[92vw] top-full mt-2 z-[100] rounded-2xl p-3 border shadow-2xl space-y-3 max-h-80 overflow-y-auto custom-scrollbar animate-fade-in"
+          style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)', boxShadow: '0 20px 45px -4px rgba(0, 0, 0, 0.75)' }}
         >
           <div className="px-1">
-            <input
-              type="text"
-              value={filterText}
-              onChange={e => setFilterText(e.target.value)}
-              placeholder="Type to filter options..."
-              className="w-full px-3 py-1.5 rounded-lg text-xs font-medium text-text-primary outline-none border"
-              style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
-              onClick={e => e.stopPropagation()}
-            />
+            <div className="relative">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+              <input
+                type="text"
+                value={filterText}
+                onChange={e => setFilterText(e.target.value)}
+                placeholder="Type to filter options..."
+                className="w-full pl-8 pr-3 py-1.5 rounded-xl text-xs font-medium text-text-primary outline-none border focus:border-cyan-500/50"
+                style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
+                onClick={e => e.stopPropagation()}
+                autoFocus
+              />
+            </div>
           </div>
 
           {filteredGroups.length === 0 ? (
-            <p className="text-xs text-text-muted p-2 text-center">No matching suggestions.</p>
+            <p className="text-xs text-text-muted p-3 text-center">No matching suggestions.</p>
           ) : (
             filteredGroups.map(group => (
-              <div key={group.group} className="space-y-1">
-                <span className="text-[9px] font-bold uppercase tracking-wider text-text-muted px-2 block">
+              <div key={group.group} className="space-y-1.5">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-cyan-400/90 px-2 block">
                   {group.group}
                 </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                   {group.items.map(item => {
                     const isSelected = multi ? values.includes(item) : value === item;
                     return (
-                      <div
+                      <button
                         key={item}
+                        type="button"
                         onClick={() => {
                           if (multi) {
                             onToggle?.(item);
@@ -522,15 +530,17 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
                             setIsOpen(false);
                           }
                         }}
-                        className="px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center justify-between"
+                        className="px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all flex items-center justify-between text-left hover:scale-[1.01]"
                         style={{
-                          background: isSelected ? 'var(--sidebar-item-active)' : 'transparent',
+                          background: isSelected ? 'var(--sidebar-item-active)' : 'var(--bg-surface-raised)',
                           color: isSelected ? accentColor : 'var(--text-primary)',
+                          border: isSelected ? '1px solid var(--border-glow)' : '1px solid transparent',
                         }}
+                        title={item}
                       >
-                        <span className="truncate">{item}</span>
-                        {isSelected && <span className="text-[10px] font-bold">✓</span>}
-                      </div>
+                        <span className="leading-snug pr-1 break-words">{item}</span>
+                        {isSelected && <span className="text-xs font-bold text-cyan-400 shrink-0 ml-1">✓</span>}
+                      </button>
                     );
                   })}
                 </div>
@@ -936,7 +946,7 @@ export const SearchView: React.FC = () => {
                   Global Job Search &amp; Aggregator
                 </h2>
                 <p className="text-[11px] text-text-muted">
-                  Scrapes Naukri, Indeed, LinkedIn, Glassdoor &amp; ZipRecruiter in parallel
+                  Scrapes Naukri, Indeed, LinkedIn, Instahyre, Internshala, Shine &amp; more in parallel
                 </p>
               </div>
             </div>
@@ -975,32 +985,36 @@ export const SearchView: React.FC = () => {
 
           {/* Search Inputs: Roles + Location + Scan Button */}
           <form onSubmit={handleSearch} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-[1.4fr_1.1fr_auto] gap-3 items-center">
-              <AutocompleteInput
-                id="role-input"
-                multi
-                values={selectedRoles}
-                onToggle={handleRoleToggle}
-                onClearAll={() => setSelectedRoles([])}
-                placeholder="Select Target Roles (e.g. Software Engineer, Tech Support)..."
-                icon={<Briefcase className="h-4 w-4" />}
-                groups={activeRoleGroups}
-                accentColor={accentColor}
-              />
+            <div className="grid grid-cols-1 md:grid-cols-[1.4fr_1.1fr_auto] gap-3 items-stretch">
+              <div className="h-full">
+                <AutocompleteInput
+                  id="role-input"
+                  multi
+                  values={selectedRoles}
+                  onToggle={handleRoleToggle}
+                  onClearAll={() => setSelectedRoles([])}
+                  placeholder="Select Target Roles (e.g. Software Engineer, Tech Support)..."
+                  icon={<Briefcase className="h-4 w-4" />}
+                  groups={activeRoleGroups}
+                  accentColor={accentColor}
+                />
+              </div>
 
-              <AutocompleteInput
-                id="location-input"
-                value={locQuery}
-                onChange={setLocQuery}
-                placeholder="Location (e.g. Remote, Bengaluru, Pune, Mumbai)"
-                icon={<MapPin className="h-4 w-4" />}
-                groups={INDIAN_LOCATIONS}
-              />
+              <div className="h-full">
+                <AutocompleteInput
+                  id="location-input"
+                  value={locQuery}
+                  onChange={setLocQuery}
+                  placeholder="Location (e.g. Remote, Bengaluru, Pune, Mumbai)"
+                  icon={<MapPin className="h-4 w-4" />}
+                  groups={INDIAN_LOCATIONS}
+                />
+              </div>
 
               <button
                 type="submit"
                 disabled={isLoading}
-                className={`px-6 py-2.5 text-xs font-bold flex items-center justify-center space-x-2 shrink-0 h-[42px] cursor-pointer shadow-lg transition-all ${
+                className={`px-6 py-2.5 text-xs font-bold flex items-center justify-center space-x-2 shrink-0 min-h-[46px] h-full cursor-pointer shadow-lg transition-all rounded-xl ${
                   isRescan
                     ? 'btn-primary bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500'
                     : 'btn-primary'
