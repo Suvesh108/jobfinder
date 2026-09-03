@@ -53,13 +53,18 @@ jobs:
           printf '{"appId":"com.jobfinder.app","appName":"JobFinder","webDir":"dist","server":{"androidScheme":"https"}}' > "$ASSETS_DIR/capacitor.config.json"
           printf '[]' > "$ASSETS_DIR/capacitor.plugins.json"
 
+      - name: Install Android SDK Platform 35
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            "platforms;android-35" \
+            "build-tools;35.0.1" \
+            --sdk_root=$ANDROID_HOME || true
+
       - name: Build Android Debug APK
         working-directory: frontend/android
-        env:
-          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
         run: |
           set -e
-          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
           cat local.properties
           ./gradlew assembleDebug --no-daemon --stacktrace
 
