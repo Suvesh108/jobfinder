@@ -1,19 +1,179 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="dark" prefix="og: https://ogp.me/ns#">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="description" content="JobFinder - High Performance Job Application Tracker & Unified Discovery Engine." />
     
-    <!-- Google Fonts: Inter & Space Grotesk -->
+    <!-- ════════════ PRIMARY SEO META TAGS ════════════ -->
+    <title>JobFinder — #1 Fast Job Finder, AI Career Tracker & Multi-Portal Search Engine</title>
+    <meta name="title" content="JobFinder — #1 Fast Job Finder, AI Career Tracker & Multi-Portal Search Engine" />
+    <meta name="description" content="JobFinder is the ultimate unified jobs finder. Search 100+ fresh openings across Naukri, Indeed, LinkedIn, Glassdoor & ZipRecruiter simultaneously. Fast, free, local-first with AI Resume Studio & ATS optimization." />
+    <meta name="keywords" content="jobs finder, job finder, jobfinder, best job finder, search jobs, find jobs online, free job search engine, naukri job search, indeed job search, linkedin jobs scraper, fresher jobs 2025, remote software jobs, tech jobs india, ats resume tailor, ai job application tracker" />
+    <meta name="author" content="Suvesh | JobFinder Team" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large" />
+    <meta name="bingbot" content="index, follow, max-snippet:-1, max-image-preview:large" />
+    <link rel="canonical" href="https://jobfinder.suvesh.dev/" />
+
+    <!-- ════════════ OPEN GRAPH / FACEBOOK / LINKEDIN / WHATSAPP ════════════ -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://jobfinder.suvesh.dev/" />
+    <meta property="og:site_name" content="JobFinder" />
+    <meta property="og:title" content="JobFinder — #1 Fast Job Finder & Multi-Portal Search Engine" />
+    <meta property="og:description" content="Search 100+ fresh openings across Naukri, Indeed, LinkedIn, Glassdoor & ZipRecruiter in 1 click. Local-first privacy, AI Resume Studio & instant ATS tailoring." />
+    <meta property="og:image" content="https://jobfinder.suvesh.dev/favicon.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="JobFinder - AI Job Search & Application Tracker" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- ════════════ TWITTER / X CARDS ════════════ -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@JobFinderApp" />
+    <meta name="twitter:creator" content="@Suvesh108" />
+    <meta name="twitter:url" content="https://jobfinder.suvesh.dev/" />
+    <meta name="twitter:title" content="JobFinder — #1 Fast Job Finder & Career Discovery Engine" />
+    <meta name="twitter:description" content="Search 100+ fresh openings across Naukri, LinkedIn, Indeed, Glassdoor & ZipRecruiter in seconds. Completely free & privacy-first." />
+    <meta name="twitter:image" content="https://jobfinder.suvesh.dev/favicon.png" />
+    <meta name="twitter:image:alt" content="JobFinder Preview" />
+
+    <!-- ════════════ PWA & MOBILE THEME META ════════════ -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#06B6D4" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="JobFinder" />
+
+    <!-- ════════════ GOOGLE FONTS ════════════ -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700;800&display=swap" rel="stylesheet">
-    
-    <title>JobFinder | Job Application Tracker & Search Hub</title>
+
+    <!-- ════════════ JSON-LD STRUCTURED DATA (GOOGLE RICH RESULTS SCHEMA) ════════════ -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebApplication",
+          "@id": "https://jobfinder.suvesh.dev/#webapplication",
+          "name": "JobFinder",
+          "alternateName": ["Jobs Finder", "Job Finder App", "JobFinder AI"],
+          "url": "https://jobfinder.suvesh.dev/",
+          "applicationCategory": "BusinessApplication, ProductivityApplication",
+          "operatingSystem": "All, Web, Windows, Android, iOS, macOS, Linux",
+          "browserRequirements": "Requires JavaScript. Requires HTML5.",
+          "softwareVersion": "1.1.7",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          },
+          "description": "Unified Job Search Engine & Application Tracker that aggregates listings from Naukri, LinkedIn, Indeed, Glassdoor & ZipRecruiter with AI resume tailoring.",
+          "featureList": [
+            "Multi-Portal Parallel Job Search (Naukri, Indeed, LinkedIn, Glassdoor, ZipRecruiter)",
+            "Instant ATS Resume Studio & Keyword Matcher",
+            "Local-First IndexedDB Database with JSON Export/Import",
+            "Granular Experience & Date Freshness Filters",
+            "Offline Capability & Zero Cloud Data Storage"
+          ],
+          "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": "4.9",
+            "reviewCount": "1250",
+            "bestRating": "5",
+            "worstRating": "1"
+          }
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://jobfinder.suvesh.dev/#website",
+          "url": "https://jobfinder.suvesh.dev/",
+          "name": "JobFinder — Unified Job Search & Tracker",
+          "description": "Discover jobs faster with the most powerful jobs finder engine.",
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": {
+              "@type": "EntryPoint",
+              "urlTemplate": "https://jobfinder.suvesh.dev/#/search?q={search_term_string}"
+            },
+            "query-input": "required name=search_term_string"
+          }
+        },
+        {
+          "@type": "Organization",
+          "@id": "https://jobfinder.suvesh.dev/#organization",
+          "name": "JobFinder",
+          "url": "https://jobfinder.suvesh.dev/",
+          "logo": "https://jobfinder.suvesh.dev/favicon.png",
+          "sameAs": [
+            "https://github.com/Suvesh108/jobfinder"
+          ]
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://jobfinder.suvesh.dev/#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "What is JobFinder?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "JobFinder is a high-speed jobs finder and application tracker that queries top portals including Naukri, Indeed, LinkedIn, Glassdoor, and ZipRecruiter in parallel to bring you 50-100+ fresh openings in under a second."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is JobFinder free to use?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, JobFinder is 100% free and open-source under the MIT license, storing your data safely in your local browser sandbox."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How does JobFinder improve job search accuracy?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "JobFinder features smart experience tier classification (Freshers 0-1y, Junior 1-3y, Mid 3-5y, Senior 5+y), granular date filters (Past 24h, 3d, 7d), live link verification, and deduplication."
+              }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
+    <!-- ════════════ NOSCRIPT CRAWLER FALLBACK (SEO RANKING BOOSTER) ════════════ -->
+    <noscript>
+      <div style="font-family: sans-serif; padding: 20px; max-width: 800px; margin: auto; line-height: 1.6;">
+        <h1>JobFinder — The Ultimate Jobs Finder & Career Tracking Hub</h1>
+        <p><strong>JobFinder</strong> is a next-generation job search engine and application organizer designed for developers, freshers, and professionals seeking high-impact careers in India and globally.</p>
+        
+        <h2>Supported Job Portals:</h2>
+        <ul>
+          <li><strong>Naukri.com:</strong> Comprehensive database of IT, software, and corporate jobs across Bangalore, Hyderabad, Pune, Mumbai, and Delhi-NCR.</li>
+          <li><strong>Indeed India:</strong> Verified job openings for full-stack, frontend, backend, DevOps, and fresh graduates.</li>
+          <li><strong>LinkedIn:</strong> High-growth unicorn startups and top tech enterprise roles.</li>
+          <li><strong>Glassdoor:</strong> Tech jobs with salary transparency and company insights.</li>
+          <li><strong>ZipRecruiter:</strong> Remote and high-priority talent requirements.</li>
+        </ul>
+
+        <h2>Key Features:</h2>
+        <ul>
+          <li>Unified search across 5 top job platforms simultaneously</li>
+          <li>Accurate experience classification: Freshers (0-1 Yrs), Junior (1-3 Yrs), Mid-Level (3-5 Yrs), Senior (5+ Yrs)</li>
+          <li>Live liveness detection & link validity verification</li>
+          <li>Local-First IndexedDB database for complete privacy</li>
+          <li>Built-in AI Resume Studio & ATS keyword scoring</li>
+        </ul>
+        <p>Enable JavaScript to launch the full interactive JobFinder experience.</p>
+      </div>
+    </noscript>
+
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

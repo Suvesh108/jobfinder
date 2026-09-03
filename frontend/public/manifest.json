@@ -1,0 +1,37 @@
+{
+  "name": "JobFinder - #1 Best AI Job Search & Application Tracker",
+  "short_name": "JobFinder",
+  "description": "Find top developer, fresher, remote, and tech jobs across Naukri, LinkedIn, Indeed, Glassdoor & ZipRecruiter in one search.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0B0F19",
+  "theme_color": "#06B6D4",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png"
+    }
+  ],
+  "categories": [
+    "business",
+    "productivity",
+    "utilities"
+  ],
+  "keywords": [
+    "job finder",
+    "jobs finder",
+    "job search engine",
+    "jobs in india",
+    "remote jobs",
+    "fresher jobs",
+    "ai resume tailor",
+    "naukri indeed linkedin aggregator"
+  ]
+}

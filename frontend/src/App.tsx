@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { updatePageSEO } from './utils/seoHelper';
 import { Sidebar } from './components/Sidebar';
 import { MobileHeader, MobileBottomNav } from './components/MobileNavigation';
 import { TrackerView } from './components/TrackerView';
@@ -12,6 +13,10 @@ import { useUIStore, applyThemeToDocument } from './store/useUIStore';
 
 export default function App() {
   const activeTab = useUIStore((state) => state.activeTab);
+
+  useEffect(() => {
+    updatePageSEO(activeTab);
+  }, [activeTab]);
   const theme     = useUIStore((state) => state.theme);
 
   /* Apply theme to <html data-theme="..."> */

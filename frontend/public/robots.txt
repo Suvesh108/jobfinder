@@ -1,0 +1,13 @@
+# JobFinder Robots.txt - High-Priority Crawl Directives
+User-agent: *
+Allow: /
+Allow: /search
+Allow: /found-jobs
+Allow: /applications
+Allow: /resume-studio
+Allow: /settings
+
+# Crawl-Delay & Sitemaps
+Crawl-delay: 1
+Sitemap: https://jobfinder.suvesh.dev/sitemap.xml
+Sitemap: https://suvesh108.github.io/jobfinder/sitemap.xml
