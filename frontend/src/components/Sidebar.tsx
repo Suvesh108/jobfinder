@@ -128,6 +128,9 @@ export const TopNavbar: React.FC = () => {
         >
           <User size={14} className={activeTab === 'profile' ? 'text-primary' : ''} />
           <span>Candidate Profile</span>
+          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 ml-1">
+            BETA
+          </span>
         </button>
       </nav>
 

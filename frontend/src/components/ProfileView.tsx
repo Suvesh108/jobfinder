@@ -30,7 +30,8 @@ import {
   FolderGit2,
   Share2,
   Key,
-  Globe
+  Globe,
+  Sparkles
 } from 'lucide-react';
 
 export const ProfileView: React.FC = () => {
@@ -86,12 +87,12 @@ export const ProfileView: React.FC = () => {
       
       setBio(p.bio || '');
       
-      setTechnicalSupportSkills(p.technicalSupportSkills || 'Troubleshooting, Debugging, Problem Solving, Technical Documentation, System Validation');
-      setOperatingSystemsSkills(p.operatingSystemsSkills || 'Linux, Windows');
-      setNetworkingSkills(p.networkingSkills || 'TCP/IP, IPv4, Subnetting, DNS, DHCP, HTTP/HTTPS, SSH, Network Troubleshooting');
-      setToolsSkills(p.toolsSkills || 'Git, GitHub, Postman, Maven, Linux CLI');
-      setLanguagesBackendSkills(p.languagesBackendSkills || 'Java, JavaScript, TypeScript, SQL, Spring Boot, Node.js, Express.js, REST APIs');
-      setDatabasesSkills(p.databasesSkills || 'MySQL, PostgreSQL, JDBC, Dexie (IndexedDB)');
+      setTechnicalSupportSkills(p.technicalSupportSkills || '');
+      setOperatingSystemsSkills(p.operatingSystemsSkills || '');
+      setNetworkingSkills(p.networkingSkills || '');
+      setToolsSkills(p.toolsSkills || '');
+      setLanguagesBackendSkills(p.languagesBackendSkills || '');
+      setDatabasesSkills(p.databasesSkills || '');
 
       setEducationList(p.educationList || []);
       setExperienceList(p.experienceList || []);
@@ -262,6 +263,9 @@ export const ProfileView: React.FC = () => {
             <h2 className="text-lg font-bold font-display text-text-primary flex items-center space-x-2">
               <User className="h-5 w-5 text-cyan-400" />
               <span>Candidate Profile &amp; ATS Resume</span>
+              <span className="px-2 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider bg-amber-500/15 text-amber-400 border border-amber-500/30 shadow-xs">
+                Beta
+              </span>
             </h2>
           </div>
 
@@ -297,6 +301,27 @@ export const ProfileView: React.FC = () => {
               <Save size={13} />
               <span>{profileSaveSuccess ? 'Saved!' : 'Save'}</span>
             </button>
+          </div>
+        </div>
+
+        {/* Beta Phase Notice Banner */}
+        <div 
+          className="p-3.5 px-4 rounded-xl border flex items-start space-x-3 text-xs leading-relaxed animate-fade-in"
+          style={{ background: 'rgba(245, 158, 11, 0.08)', borderColor: 'rgba(245, 158, 11, 0.25)' }}
+        >
+          <div className="p-1.5 rounded-lg bg-amber-500/15 text-amber-400 shrink-0 mt-0.5">
+            <Sparkles size={15} />
+          </div>
+          <div className="space-y-1">
+            <div className="flex items-center space-x-2">
+              <span className="font-bold text-text-primary text-xs flex items-center gap-1.5">
+                <span>Candidate Profile &amp; ATS Resume Studio</span>
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30">Beta Phase</span>
+              </span>
+            </div>
+            <p className="text-text-muted text-[11px] leading-normal">
+              This feature is currently in <strong>Beta Phase</strong>. We are actively refining real-time ATS resume generation, AI bullet tailoring, and LaTeX markup export. All candidate profile details are stored 100% locally on your device in IndexedDB. Please review your details and resume output before submitting job applications.
+            </p>
           </div>
         </div>
 
@@ -490,7 +515,7 @@ export const ProfileView: React.FC = () => {
 
               <textarea
                 rows={4}
-                placeholder="I am a Computer Science graduate who enjoys solving problems and understanding how things work..."
+                placeholder="e.g. Passionate software engineer with experience building scalable web applications and distributed systems..."
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
                 className="w-full border rounded-xl p-3.5 text-xs text-text-primary focus:outline-none resize-none leading-relaxed"
@@ -539,7 +564,7 @@ export const ProfileView: React.FC = () => {
                         <label className="text-[9px] font-bold text-text-muted uppercase block mb-1">Institution / College Name</label>
                         <input
                           type="text"
-                          placeholder="e.g. Nagarjuna College of Engineering and Technology"
+                          placeholder="e.g. Stanford University / Indian Institute of Technology"
                           value={edu.institution}
                           onChange={(e) => updateEducation(idx, 'institution', e.target.value)}
                           className="w-full border rounded-lg px-3 py-1.5 text-xs text-text-primary focus:outline-none"
@@ -551,7 +576,7 @@ export const ProfileView: React.FC = () => {
                         <label className="text-[9px] font-bold text-text-muted uppercase block mb-1">Degree &amp; Major</label>
                         <input
                           type="text"
-                          placeholder="e.g. B.Tech in Computer Science and Engineering"
+                          placeholder="e.g. B.S. / B.Tech in Computer Science"
                           value={edu.degree}
                           onChange={(e) => updateEducation(idx, 'degree', e.target.value)}
                           className="w-full border rounded-lg px-3 py-1.5 text-xs text-text-primary focus:outline-none"
@@ -563,7 +588,7 @@ export const ProfileView: React.FC = () => {
                         <label className="text-[9px] font-bold text-text-muted uppercase block mb-1">CGPA / Grade / Percentage</label>
                         <input
                           type="text"
-                          placeholder="e.g. CGPA: 7/10 or 85%"
+                          placeholder="e.g. 3.8/4.0 GPA or 85%"
                           value={edu.cgpaOrGrade}
                           onChange={(e) => updateEducation(idx, 'cgpaOrGrade', e.target.value)}
                           className="w-full border rounded-lg px-3 py-1.5 text-xs text-text-primary focus:outline-none"
@@ -576,7 +601,7 @@ export const ProfileView: React.FC = () => {
                           <label className="text-[9px] font-bold text-text-muted uppercase block mb-1">Location</label>
                           <input
                             type="text"
-                            placeholder="e.g. Bangalore, India"
+                            placeholder="e.g. City, Country"
                             value={edu.location}
                             onChange={(e) => updateEducation(idx, 'location', e.target.value)}
                             className="w-full border rounded-lg px-3 py-1.5 text-xs text-text-primary focus:outline-none"
@@ -587,7 +612,7 @@ export const ProfileView: React.FC = () => {
                           <label className="text-[9px] font-bold text-text-muted uppercase block mb-1">Year Range</label>
                           <input
                             type="text"
-                            placeholder="e.g. 2021 — 2025"
+                            placeholder="e.g. 2020 — 2024"
                             value={edu.years}
                             onChange={(e) => updateEducation(idx, 'years', e.target.value)}
                             className="w-full border rounded-lg px-3 py-1.5 text-xs text-text-primary focus:outline-none"
@@ -720,7 +745,7 @@ export const ProfileView: React.FC = () => {
                         <label className="text-[9px] font-bold text-text-muted uppercase block mb-1">Company / Organization</label>
                         <input
                           type="text"
-                          placeholder="e.g. CODTECH IT SOLUTIONS"
+                          placeholder="e.g. Acme Tech Solutions / Google"
                           value={exp.company}
                           onChange={(e) => updateExperience(expIdx, 'company', e.target.value)}
                           className="w-full border rounded-lg px-3 py-1.5 text-xs text-text-primary focus:outline-none"
@@ -732,7 +757,7 @@ export const ProfileView: React.FC = () => {
                         <label className="text-[9px] font-bold text-text-muted uppercase block mb-1">Role / Job Title</label>
                         <input
                           type="text"
-                          placeholder="e.g. Frontend Web Development Intern"
+                          placeholder="e.g. Software Engineer Intern"
                           value={exp.role}
                           onChange={(e) => updateExperience(expIdx, 'role', e.target.value)}
                           className="w-full border rounded-lg px-3 py-1.5 text-xs text-text-primary focus:outline-none"
@@ -744,7 +769,7 @@ export const ProfileView: React.FC = () => {
                         <label className="text-[9px] font-bold text-text-muted uppercase block mb-1">Location / Work Mode</label>
                         <input
                           type="text"
-                          placeholder="e.g. Remote / Bangalore, India"
+                          placeholder="e.g. Remote / San Francisco, CA"
                           value={exp.location}
                           onChange={(e) => updateExperience(expIdx, 'location', e.target.value)}
                           className="w-full border rounded-lg px-3 py-1.5 text-xs text-text-primary focus:outline-none"
@@ -756,7 +781,7 @@ export const ProfileView: React.FC = () => {
                         <label className="text-[9px] font-bold text-text-muted uppercase block mb-1">Date Range</label>
                         <input
                           type="text"
-                          placeholder="e.g. Jan 2025 — May 2025"
+                          placeholder="e.g. Jun 2023 — Aug 2023"
                           value={exp.dates}
                           onChange={(e) => updateExperience(expIdx, 'dates', e.target.value)}
                           className="w-full border rounded-lg px-3 py-1.5 text-xs text-text-primary focus:outline-none"
@@ -859,7 +884,7 @@ export const ProfileView: React.FC = () => {
                         <label className="text-[9px] font-bold text-text-muted uppercase block mb-1">Project Title</label>
                         <input
                           type="text"
-                          placeholder="e.g. JobFinder — Job Tracking & Search Platform"
+                          placeholder="e.g. Cloud Task Management & Analytics Platform"
                           value={prj.title}
                           onChange={(e) => updateProject(prjIdx, 'title', e.target.value)}
                           className="w-full border rounded-lg px-3 py-1.5 text-xs text-text-primary focus:outline-none"
@@ -899,7 +924,7 @@ export const ProfileView: React.FC = () => {
                           <span className="text-text-muted text-xs">•</span>
                           <input
                             type="text"
-                            placeholder="e.g. Built a multi-service application with React, Python/FastAPI & Node/Express..."
+                            placeholder="e.g. Built a real-time collaborative web application with React, TypeScript & Node.js..."
                             value={b}
                             onChange={(e) => updatePrjBullet(prjIdx, bIdx, e.target.value)}
                             className="flex-1 border rounded-lg px-3 py-1 text-xs text-text-primary focus:outline-none"
@@ -962,7 +987,7 @@ export const ProfileView: React.FC = () => {
                         <label className="text-[9px] font-bold text-text-muted uppercase block mb-1">Certification Title</label>
                         <input
                           type="text"
-                          placeholder="e.g. Oracle Cloud Infrastructure 2025 Foundations Associate"
+                          placeholder="e.g. AWS Certified Solutions Architect / Meta Frontend Developer"
                           value={cert.title}
                           onChange={(e) => updateCertification(idx, 'title', e.target.value)}
                           className="w-full border rounded-lg px-3 py-1.5 text-xs text-text-primary focus:outline-none"
@@ -986,7 +1011,7 @@ export const ProfileView: React.FC = () => {
                         <label className="text-[9px] font-bold text-text-muted uppercase block mb-1">Short Description / Core Domains</label>
                         <input
                           type="text"
-                          placeholder="e.g. Foundation in IT Systems, Networking, and Cloud Infrastructure"
+                          placeholder="e.g. Cloud architecture, distributed systems, and modern web application development"
                           value={cert.description}
                           onChange={(e) => updateCertification(idx, 'description', e.target.value)}
                           className="w-full border rounded-lg px-3 py-1.5 text-xs text-text-primary focus:outline-none"

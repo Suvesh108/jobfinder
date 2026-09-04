@@ -40,7 +40,7 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({ profile, onRecreat
   const generateLatex = (): string => {
     const eduItems = (profile.educationList && profile.educationList.length > 0)
       ? profile.educationList.map(edu => "    \\item\n    \\textbf{" + escapeLatex(edu.institution) + "} $|$ \\textbf{" + escapeLatex(edu.cgpaOrGrade) + "} \\hfill " + edu.location + "\\\\\n    \\textit{" + escapeLatex(edu.degree) + "} \\hfill " + edu.years).join('\n')
-      : "    \\item\n    \\textbf{Nagarjuna College of Engineering and Technology} $|$ \\textbf{CGPA: 7/10} \\hfill Bangalore, India\\\\\n    \\textit{B.Tech in Computer Science and Engineering} \\hfill 2021 -- 2025";
+      : "    \\item\n    \\textbf{University / College Name} $|$ \\textbf{CGPA: 8.5/10} \\hfill City, Country\\\\\n    \\textit{Bachelor of Science / Technology} \\hfill YYYY -- YYYY";
 
     const expItems = (profile.experienceList && profile.experienceList.length > 0)
       ? profile.experienceList.map(exp => "    \\item\n    \\textbf{" + escapeLatex(exp.company) + "} \\hfill " + exp.location + "\\\\\n    \\textit{" + escapeLatex(exp.role) + "} \\hfill " + exp.dates + "\n    \\begin{itemize}\n" + (exp.bullets || []).map(b => "        \\item " + b).join('\n') + "\n    \\end{itemize}").join('\n')
@@ -54,7 +54,19 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({ profile, onRecreat
       ? profile.certificationsList.map(cert => "    \\item \\textbf{" + cert.title + "} -- " + cert.description).join('\n')
       : '';
 
-    return "%-------------------------\n% Resume in LaTeX / Jake's Resume Template\n%-------------------------\n\n\\documentclass[letterpaper,11pt]{article}\n\n\\usepackage{latexsym}\n\\usepackage[empty]{fullpage}\n\\usepackage{titlesec}\n\\usepackage{marvosym}\n\\usepackage[usenames,dvipsnames]{color}\n\\usepackage{verbatim}\n\\usepackage{enumitem}\n\\usepackage[hidelinks]{hyperref}\n\\usepackage{fancyhdr}\n\\usepackage[english]{babel}\n\\usepackage{tabularx}\n\n\\pagestyle{fancy}\n\\fancyhf{}\n\\fancyfoot{}\n\\renewcommand{\\headrulewidth}{0pt}\n\\renewcommand{\\footrulewidth}{0pt}\n\n\\addtolength{\\oddsidemargin}{-0.5in}\n\\addtolength{\\evensidemargin}{-0.5in}\n\\addtolength{\\textwidth}{1in}\n\\addtolength{\\topmargin}{-.5in}\n\\addtolength{\\textheight}{1.0in}\n\n\\urlstyle{same}\n\n\\raggedbottom\n\\raggedright\n\\setlength{\\tabcolsep}{0in}\n\n% Sections formatting\n\\titleformat{\\section}{\n  \\vspace{-4pt}\\scshape\\raggedright\\large\\color{NavyBlue}\n}{}{0em}{}[\\color{black}\\titlerule \\vspace{-5pt}]\n\n\\begin{document}\n\n%----------HEADING----------\n\\begin{center}\n    \\textbf{\\Huge \\scshape " + (escapeLatex(profile.name) || 'YOUR NAME') + "} \\\\ \\vspace{1pt}\n    \\small " + (profile.email || 'your.email@example.com') + " $|$ " + (profile.phone || '+91-XXXXXXXXXX') + " $|$ \n    \\href{" + (profile.linkedinUrl || 'https://linkedin.com') + "}{\\underline{LinkedIn}} $|$\n    \\href{" + (profile.githubUrl || 'https://github.com') + "}{\\underline{GitHub}} $|$\n    \\href{" + (profile.portfolioUrl || 'https://portfolio.dev') + "}{\\underline{Portfolio}}\n\\end{center}\n\n%-----------PROFESSIONAL SUMMARY-----------\n\\section{Professional Summary}\n" + (escapeLatex(profile.bio) || '') + "\n\n%-----------EDUCATION-----------\n\\section{Education}\n\\begin{itemize}[leftmargin=0.15in, label={}]\n" + eduItems + "\n\\end{itemize}\n\n%-----------CORE SKILLS-----------\n\\section{Core Skills}\n\\begin{itemize}[leftmargin=0.15in, label={}]\n    \\small{\\item{\n     \\textbf{Technical Support:}{ " + (profile.technicalSupportSkills || 'Troubleshooting, Debugging, Problem Solving, Technical Documentation') + " } \\\\\n     \\textbf{Operating Systems:}{ " + (profile.operatingSystemsSkills || 'Linux, Windows') + " } \\\\\n     \\textbf{Networking:}{ " + (profile.networkingSkills || 'TCP/IP, IPv4, Subnetting, DNS, DHCP, HTTP/HTTPS, SSH') + " } \\\\\n     \\textbf{Tools:}{ " + (profile.toolsSkills || 'Git, GitHub, Postman, Maven, Linux CLI') + " } \\\\\n     \\textbf{Languages \\& Backend:}{ " + (profile.languagesBackendSkills || 'Java, JavaScript, TypeScript, SQL, Spring Boot, Node.js, Express.js') + " } \\\\\n     \\textbf{Databases:}{ " + (profile.databasesSkills || 'MySQL, PostgreSQL, JDBC, Dexie (IndexedDB)') + " }\n    }}\n\\end{itemize}\n\n" + (expItems ? "%-----------EXPERIENCE-----------\n\\section{Experience \\& Training}\n\\begin{itemize}[leftmargin=0.15in, label={}]\n" + expItems + "\n\\end{itemize}\n\n" : "") + (prjItems ? "%-----------PROJECTS-----------\n\\section{Projects}\n\\begin{itemize}[leftmargin=0.15in, label={}]\n" + prjItems + "\n\\end{itemize}\n\n" : "") + (certItems ? "%-----------CERTIFICATIONS-----------\n\\section{Certifications \\& Accomplishments}\n\\begin{itemize}[leftmargin=0.15in, label={}]\n" + certItems + "\n\\end{itemize}\n\n" : "") + "\\end{document}\n";
+    const skillsList: string[] = [];
+    if (profile.technicalSupportSkills) skillsList.push("     \\textbf{Technical Support:}{ " + escapeLatex(profile.technicalSupportSkills) + " }");
+    if (profile.operatingSystemsSkills) skillsList.push("     \\textbf{Operating Systems:}{ " + escapeLatex(profile.operatingSystemsSkills) + " }");
+    if (profile.networkingSkills) skillsList.push("     \\textbf{Networking:}{ " + escapeLatex(profile.networkingSkills) + " }");
+    if (profile.toolsSkills) skillsList.push("     \\textbf{Tools:}{ " + escapeLatex(profile.toolsSkills) + " }");
+    if (profile.languagesBackendSkills) skillsList.push("     \\textbf{Languages \\& Backend:}{ " + escapeLatex(profile.languagesBackendSkills) + " }");
+    if (profile.databasesSkills) skillsList.push("     \\textbf{Databases:}{ " + escapeLatex(profile.databasesSkills) + " }");
+
+    const coreSkillsSection = skillsList.length > 0
+      ? "%-----------CORE SKILLS-----------\n\\section{Core Skills}\n\\begin{itemize}[leftmargin=0.15in, label={}]\n    \\small{\\item{\n" + skillsList.join(" \\\\\n") + "\n    }}\n\\end{itemize}\n\n"
+      : "";
+
+    return "%-------------------------\n% Resume in LaTeX / Jake's Resume Template\n%-------------------------\n\n\\documentclass[letterpaper,11pt]{article}\n\n\\usepackage{latexsym}\n\\usepackage[empty]{fullpage}\n\\usepackage{titlesec}\n\\usepackage{marvosym}\n\\usepackage[usenames,dvipsnames]{color}\n\\usepackage{verbatim}\n\\usepackage{enumitem}\n\\usepackage[hidelinks]{hyperref}\n\\usepackage{fancyhdr}\n\\usepackage[english]{babel}\n\\usepackage{tabularx}\n\n\\pagestyle{fancy}\n\\fancyhf{}\n\\fancyfoot{}\n\\renewcommand{\\headrulewidth}{0pt}\n\\renewcommand{\\footrulewidth}{0pt}\n\n\\addtolength{\\oddsidemargin}{-0.5in}\n\\addtolength{\\evensidemargin}{-0.5in}\n\\addtolength{\\textwidth}{1in}\n\\addtolength{\\topmargin}{-.5in}\n\\addtolength{\\textheight}{1.0in}\n\n\\urlstyle{same}\n\n\\raggedbottom\n\\raggedright\n\\setlength{\\tabcolsep}{0in}\n\n% Sections formatting\n\\titleformat{\\section}{\n  \\vspace{-4pt}\\scshape\\raggedright\\large\\color{NavyBlue}\n}{}{0em}{}[\\color{black}\\titlerule \\vspace{-5pt}]\n\n\\begin{document}\n\n%----------HEADING----------\n\\begin{center}\n    \\textbf{\\Huge \\scshape " + (escapeLatex(profile.name) || 'YOUR NAME') + "} \\\\ \\vspace{1pt}\n    \\small " + (profile.email || 'your.email@example.com') + " $|$ " + (profile.phone || '+91-XXXXXXXXXX') + " $|$ \n    \\href{" + (profile.linkedinUrl || 'https://linkedin.com') + "}{\\underline{LinkedIn}} $|$\n    \\href{" + (profile.githubUrl || 'https://github.com') + "}{\\underline{GitHub}} $|$\n    \\href{" + (profile.portfolioUrl || 'https://portfolio.dev') + "}{\\underline{Portfolio}}\n\\end{center}\n\n" + (profile.bio ? "%-----------PROFESSIONAL SUMMARY-----------\n\\section{Professional Summary}\n" + escapeLatex(profile.bio) + "\n\n" : "") + "%-----------EDUCATION-----------\n\\section{Education}\n\\begin{itemize}[leftmargin=0.15in, label={}]\n" + eduItems + "\n\\end{itemize}\n\n" + coreSkillsSection + (expItems ? "%-----------EXPERIENCE-----------\n\\section{Experience \\& Training}\n\\begin{itemize}[leftmargin=0.15in, label={}]\n" + expItems + "\n\\end{itemize}\n\n" : "") + (prjItems ? "%-----------PROJECTS-----------\n\\section{Projects}\n\\begin{itemize}[leftmargin=0.15in, label={}]\n" + prjItems + "\n\\end{itemize}\n\n" : "") + (certItems ? "%-----------CERTIFICATIONS-----------\n\\section{Certifications \\& Accomplishments}\n\\begin{itemize}[leftmargin=0.15in, label={}]\n" + certItems + "\n\\end{itemize}\n\n" : "") + "\\end{document}\n";
   };
 
   const handleCopyLatex = () => {
@@ -228,61 +240,63 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({ profile, onRecreat
           ) : (
             <div className="text-[12px]">
               <div className="flex justify-between font-bold text-slate-900">
-                <span>Nagarjuna College of Engineering and Technology <span className="font-normal">| CGPA: 7/10</span></span>
-                <span className="font-normal text-slate-800">Bangalore, India</span>
+                <span>University / College Name <span className="font-normal">| CGPA / Grade</span></span>
+                <span className="font-normal text-slate-800">City, Country</span>
               </div>
               <div className="flex justify-between italic text-slate-800">
-                <span>B.Tech in Computer Science and Engineering</span>
-                <span className="not-italic text-slate-800">2021 — 2025</span>
+                <span>Degree &amp; Major</span>
+                <span className="not-italic text-slate-800">YYYY — YYYY</span>
               </div>
             </div>
           )}
         </div>
 
         {/* 4. Core Skills */}
-        <div className="mt-4">
-          <h2 className="text-[14px] font-bold text-[#1E3A8A] uppercase tracking-wide border-b border-slate-400 pb-0.5 mb-1.5">
-            Core Skills
-          </h2>
-          <div className="text-[12px] text-slate-800 space-y-1">
-            {profile.technicalSupportSkills && (
-              <div>
-                <span className="font-bold text-slate-900">Technical Support: </span>
-                <span>{profile.technicalSupportSkills}</span>
-              </div>
-            )}
-            {profile.operatingSystemsSkills && (
-              <div>
-                <span className="font-bold text-slate-900">Operating Systems: </span>
-                <span>{profile.operatingSystemsSkills}</span>
-              </div>
-            )}
-            {profile.networkingSkills && (
-              <div>
-                <span className="font-bold text-slate-900">Networking: </span>
-                <span>{profile.networkingSkills}</span>
-              </div>
-            )}
-            {profile.toolsSkills && (
-              <div>
-                <span className="font-bold text-slate-900">Tools: </span>
-                <span>{profile.toolsSkills}</span>
-              </div>
-            )}
-            {profile.languagesBackendSkills && (
-              <div>
-                <span className="font-bold text-slate-900">Languages &amp; Backend: </span>
-                <span>{profile.languagesBackendSkills}</span>
-              </div>
-            )}
-            {profile.databasesSkills && (
-              <div>
-                <span className="font-bold text-slate-900">Databases: </span>
-                <span>{profile.databasesSkills}</span>
-              </div>
-            )}
+        {(profile.technicalSupportSkills || profile.operatingSystemsSkills || profile.networkingSkills || profile.toolsSkills || profile.languagesBackendSkills || profile.databasesSkills) ? (
+          <div className="mt-4">
+            <h2 className="text-[14px] font-bold text-[#1E3A8A] uppercase tracking-wide border-b border-slate-400 pb-0.5 mb-1.5">
+              Core Skills
+            </h2>
+            <div className="text-[12px] text-slate-800 space-y-1">
+              {profile.technicalSupportSkills && (
+                <div>
+                  <span className="font-bold text-slate-900">Technical Support: </span>
+                  <span>{profile.technicalSupportSkills}</span>
+                </div>
+              )}
+              {profile.operatingSystemsSkills && (
+                <div>
+                  <span className="font-bold text-slate-900">Operating Systems: </span>
+                  <span>{profile.operatingSystemsSkills}</span>
+                </div>
+              )}
+              {profile.networkingSkills && (
+                <div>
+                  <span className="font-bold text-slate-900">Networking: </span>
+                  <span>{profile.networkingSkills}</span>
+                </div>
+              )}
+              {profile.toolsSkills && (
+                <div>
+                  <span className="font-bold text-slate-900">Tools: </span>
+                  <span>{profile.toolsSkills}</span>
+                </div>
+              )}
+              {profile.languagesBackendSkills && (
+                <div>
+                  <span className="font-bold text-slate-900">Languages &amp; Backend: </span>
+                  <span>{profile.languagesBackendSkills}</span>
+                </div>
+              )}
+              {profile.databasesSkills && (
+                <div>
+                  <span className="font-bold text-slate-900">Databases: </span>
+                  <span>{profile.databasesSkills}</span>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        ) : null}
 
         {/* 5. Experience & Training */}
         {profile.experienceList && profile.experienceList.length > 0 && (

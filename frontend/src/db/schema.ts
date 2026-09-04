@@ -142,7 +142,14 @@ export async function getUserProfile(): Promise<UserProfile> {
   const profile = await db.profiles.toCollection().first();
   if (profile) {
     // If an existing DB had pre-fed personal profile data, reset to clean blank state
-    if (profile.name === 'SUVESH KUMAR' || profile.email === 'suvesh546@gmail.com') {
+    const profileStr = JSON.stringify(profile);
+    if (
+      profile.name === 'SUVESH KUMAR' || 
+      profile.email === 'suvesh546@gmail.com' ||
+      profile.phone?.includes('6202474991') ||
+      profileStr.includes('Nagarjuna') ||
+      profileStr.includes('CODTECH')
+    ) {
       await db.profiles.clear();
       const id = await db.profiles.add({ ...DEFAULT_USER_PROFILE });
       return { ...DEFAULT_USER_PROFILE, id };

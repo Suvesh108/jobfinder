@@ -21,7 +21,7 @@ export const MobileHeader: React.FC = () => {
       case 'search': return 'Search Jobs';
       case 'found_jobs': return 'Found Jobs';
       case 'tracker': return 'Application Tracker';
-      case 'profile': return 'Candidate Profile';
+      case 'profile': return 'Candidate Profile (Beta)';
       case 'settings': return 'Settings & AI';
       default: return 'JobFinder';
     }

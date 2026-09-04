@@ -87,16 +87,14 @@ jobs:
 
             ---
 
-            ### ✨ What's New in v2.0.0
+            ### ✨ What's New in v2.1.0
 
-            * 🔍 **9-Portal Parallel Search Engine**: Naukri, LinkedIn, Indeed, Internshala, Shine, Freshersworld, Apna, Glassdoor & Instahyre — all in one concurrent scan with 100% verified real URLs (zero broken links).
-            * 📄 **Jake's ATS Resume Studio**: Real-time A4 paper preview + in-browser LaTeX editor. Copy to Overleaf, download `.tex`, or export PDF directly.
-            * 🤖 **AI Chat Copilot**: Drag-and-drop job cards onto the copilot to instantly tailor bullets. Supports Google Gemini, Groq, DeepSeek, OpenRouter, NVIDIA NIM & OpenAI.
-            * 📱 **Native Android Build**: Touch-optimized UI with bottom glassmorphic dock, haptic feedback, and in-app OTA update checker.
-            * 🎨 **Dark OLED Brand Icon**: New high-contrast black background with white briefcase & electric cyan search lens logo.
-            * 🔒 **Zero Pre-Seeded Data**: Clean blank profile — no personal data from the developer shipped in the template.
-            * 💾 **100% Local IndexedDB**: All your jobs, applications, and profile data stay on-device. No cloud. No tracking.
-            * 📋 **Kanban Application Tracker**: Full pipeline across Wishlist → Applied → Interview → Offer → Rejected.
+            * 🔒 **Complete Detail Sanitization**: Completely removed all developer college, internship, and personal skill fallbacks from the ATS Resume preview, LaTeX generator, and local schema.
+            * 🧪 **Candidate Profile Beta Phase**: Added explicit Beta status tags and informative privacy notice in the Candidate Profile & ATS Resume studio, sidebar, and mobile navigation.
+            * 📄 **Jake's ATS Resume Studio**: Fully dynamic LaTeX generation and live A4 preview using only the user's explicitly entered profile details.
+            * 🔍 **9-Portal Parallel Search Engine**: Naukri, LinkedIn, Indeed, Internshala, Shine, Freshersworld, Apna, Glassdoor & Instahyre.
+            * 📱 **Native Android Build**: Single versioned `JobFinder-${{ github.ref_name }}.apk` artifact.
+            * 💾 **100% Local IndexedDB**: All your candidate details and job trackers remain strictly on your device. Zero cloud leakage.
 
             ---
 

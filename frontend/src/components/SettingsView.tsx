@@ -37,7 +37,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 
-const CURRENT_VERSION = 'v2.0.0';
+const CURRENT_VERSION = 'v2.1.0';
 
 export const SettingsView: React.FC = () => {
   const { 
