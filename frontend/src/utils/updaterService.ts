@@ -9,7 +9,7 @@ export interface ReleaseInfo {
   htmlUrl: string;
 }
 
-export const CURRENT_APP_VERSION = 'v2.1.1';
+export const CURRENT_APP_VERSION = 'v2.1.2';
 
 /**
  * Parses semver string into numeric array [major, minor, patch]

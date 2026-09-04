@@ -48,7 +48,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 
-const CURRENT_VERSION = 'v2.1.1';
+const CURRENT_VERSION = 'v2.1.2';
 
 export const SettingsView: React.FC = () => {
   const { 
@@ -949,6 +949,9 @@ export const SettingsView: React.FC = () => {
                         <span>Re-launch Installer</span>
                       </button>
                     </div>
+                    <p className="text-[11px] text-text-muted opacity-85 leading-relaxed pt-1">
+                      💡 Note: If Android shows &ldquo;package conflicts with an existing package&rdquo;, please uninstall the older legacy APK once. All releases from v2.1.2 onward use a unified permanent signing key for seamless updates.
+                    </p>
                   </div>
                 )}
 

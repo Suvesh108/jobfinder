@@ -7,46 +7,51 @@
     <!-- Briefcase Handle (Clean White) -->
     <path
         android:fillColor="#00000000"
-        android:pathData="M44,34 V29 C44,26.2 46.2,24 49,24 H59 C61.8,24 64,26.2 64,29 V34"
+        android:pathData="M45,43 V39 C45,36.8 46.8,35 49,35 H55 C57.2,35 59,36.8 59,39 V43"
         android:strokeColor="#FFFFFF"
-        android:strokeWidth="3.5"
+        android:strokeWidth="3.0"
         android:strokeLineCap="round"
         android:strokeLineJoin="round" />
 
-    <!-- Briefcase Body (Crisp White Outline) -->
+    <!-- Briefcase Body (Crisp White Outline with Charcoal Fill) -->
     <path
-        android:fillColor="#00000000"
-        android:pathData="M30,34 H78 C82.4,34 86,37.6 86,42 V70 C86,74.4 82.4,78 78,78 H30 C25.6,78 22,74.4 22,70 V42 C22,37.6 25.6,34 30,34 Z"
+        android:fillColor="#E60E141E"
+        android:pathData="M37,43 H67 C69.8,43 72,45.2 72,48 V66 C72,68.8 69.8,71 67,71 H37 C34.2,71 32,68.8 32,66 V48 C32,45.2 34.2,43 37,43 Z"
         android:strokeColor="#FFFFFF"
-        android:strokeWidth="3.5"
+        android:strokeWidth="3.2"
         android:strokeLineCap="round"
         android:strokeLineJoin="round" />
 
     <!-- Briefcase Horizontal Seam -->
     <path
         android:fillColor="#00000000"
-        android:pathData="M23,50 H85"
+        android:pathData="M33,55 H71"
         android:strokeColor="#40FFFFFF"
-        android:strokeWidth="2"
+        android:strokeWidth="1.5"
         android:strokeLineCap="round" />
 
     <!-- Search Lens Ring (Vibrant Electric Cyan) -->
     <path
         android:fillColor="#00000000"
-        android:pathData="M56,54 C56,46.27 62.27,40 70,40 C77.73,40 84,46.27 84,54 C84,61.73 77.73,68 70,68 C62.27,68 56,61.73 56,54 Z"
+        android:pathData="M52,58 C52,52.2 56.7,47.5 62.5,47.5 C68.3,47.5 73,52.2 73,58 C73,63.8 68.3,68.5 62.5,68.5 C56.7,68.5 52,63.8 52,58 Z"
         android:strokeColor="#06B6D4"
-        android:strokeWidth="4" />
+        android:strokeWidth="3.6" />
 
     <!-- Search Lens Handle (Cyan) -->
     <path
         android:fillColor="#00000000"
-        android:pathData="M80,64 L91,75"
+        android:pathData="M70,65.5 L77,72.5"
         android:strokeColor="#06B6D4"
-        android:strokeWidth="4.5"
+        android:strokeWidth="4.2"
         android:strokeLineCap="round" />
 
     <!-- Center Sparkle Star (Pure White) -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M70,48 L71.8,52.2 L76,54 L71.8,55.8 L70,60 L68.2,55.8 L64,54 L68.2,52.2 Z" />
+        android:pathData="M62.5,53 L64.1,56.4 L67.5,58 L64.1,59.6 L62.5,63 L60.9,59.6 L57.5,58 L60.9,56.4 Z" />
+
+    <!-- Center Cyan Pinpoint -->
+    <path
+        android:fillColor="#06B6D4"
+        android:pathData="M62,58 A0.8,0.8 0 1,0 63,58 A0.8,0.8 0 1,0 62,58 Z" />
 </vector>

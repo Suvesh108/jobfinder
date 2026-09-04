@@ -7,8 +7,8 @@ android {
         applicationId "com.jobfinder.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 211
-        versionName "2.1.1"
+        versionCode 212
+        versionName "2.1.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,8 +16,22 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        defaultConfig {
+            storeFile file('jobfinder.keystore')
+            storePassword 'jobfinder'
+            keyAlias 'jobfinder'
+            keyPassword 'jobfinder'
+        }
+    }
     buildTypes {
+        debug {
+            signingConfig signingConfigs.defaultConfig
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
         release {
+            signingConfig signingConfigs.defaultConfig
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

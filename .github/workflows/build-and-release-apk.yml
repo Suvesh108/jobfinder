@@ -87,12 +87,13 @@ jobs:
 
             ---
 
-            ### ✨ What's New in v2.1.1
+            ### ✨ What's New in v2.1.2
 
-            * 🔢 **Smart Semver Release Engine**: Fixed release version comparison algorithm so current releases never display older releases as new updates.
-            * 🕷️ **Reliable Android Scraper Synchronization**: Fixed mobile "Failed to fetch" on Android APK by synchronizing JobScrap multi-portal definitions directly with GitHub main and preventing misleading green checkmarks on network errors.
-            * 📱 **Responsive Mobile Update UI**: Re-engineered the "Download & Install Update" button layout to prevent text squishing and button overflow on small mobile Android viewports.
-            * 🔒 **Sanitized Candidate Profile & ATS Beta**: Jake's ATS Resume and Candidate Profile remain 100% clean of hardcoded developer details and run in local-first privacy mode.
+            * 🔐 **Unified Permanent Android Signing Keystore**: Fixed "App not installed as package conflicts with an existing package" by bundling a persistent, dedicated keystore (`jobfinder.keystore`). Every release is now signed with the exact same cryptographic key for seamless in-app OTA updates.
+            * 🎨 **Bespoke Circular Android Logo Layout**: Re-engineered Android launcher icons with standard 108dp safe-zone scaling. In circular launchers, the white briefcase, handle, and electric cyan search lens are fully visible with comfortable breathing room, preventing launcher border clipping.
+            * 🔢 **Smart Semver Release Engine**: Strict semantic versioning comparison prevents showing older releases as updates.
+            * 🕷️ **Reliable Android Scraper Synchronization**: Multi-portal definitions synchronize directly with GitHub main even when local backend is offline.
+            * 📱 **Responsive Mobile Update UI**: Fully responsive full-width update banner layout.
             * 🚀 **Single Verified APK Artifact**: Direct standalone installation package `JobFinder-${{ github.ref_name }}.apk`.
 
             ---
