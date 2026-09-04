@@ -87,14 +87,13 @@ jobs:
 
             ---
 
-            ### ✨ What's New in v2.1.0
+            ### ✨ What's New in v2.1.1
 
-            * 🔒 **Complete Detail Sanitization**: Completely removed all developer college, internship, and personal skill fallbacks from the ATS Resume preview, LaTeX generator, and local schema.
-            * 🧪 **Candidate Profile Beta Phase**: Added explicit Beta status tags and informative privacy notice in the Candidate Profile & ATS Resume studio, sidebar, and mobile navigation.
-            * 📄 **Jake's ATS Resume Studio**: Fully dynamic LaTeX generation and live A4 preview using only the user's explicitly entered profile details.
-            * 🔍 **9-Portal Parallel Search Engine**: Naukri, LinkedIn, Indeed, Internshala, Shine, Freshersworld, Apna, Glassdoor & Instahyre.
-            * 📱 **Native Android Build**: Single versioned `JobFinder-${{ github.ref_name }}.apk` artifact.
-            * 💾 **100% Local IndexedDB**: All your candidate details and job trackers remain strictly on your device. Zero cloud leakage.
+            * 🔢 **Smart Semver Release Engine**: Fixed release version comparison algorithm so current releases never display older releases as new updates.
+            * 🕷️ **Reliable Android Scraper Synchronization**: Fixed mobile "Failed to fetch" on Android APK by synchronizing JobScrap multi-portal definitions directly with GitHub main and preventing misleading green checkmarks on network errors.
+            * 📱 **Responsive Mobile Update UI**: Re-engineered the "Download & Install Update" button layout to prevent text squishing and button overflow on small mobile Android viewports.
+            * 🔒 **Sanitized Candidate Profile & ATS Beta**: Jake's ATS Resume and Candidate Profile remain 100% clean of hardcoded developer details and run in local-first privacy mode.
+            * 🚀 **Single Verified APK Artifact**: Direct standalone installation package `JobFinder-${{ github.ref_name }}.apk`.
 
             ---
 

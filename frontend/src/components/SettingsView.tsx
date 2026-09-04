@@ -1,4 +1,14 @@
-import { fetchLatestRelease, downloadApkInternally, type ReleaseInfo, checkScraperUpdate, applyScraperUpdate, type ScraperUpdateStatus, getInstalledScraperInfo, type InstalledScraperInfo } from '../utils/updaterService';
+import { 
+  fetchLatestRelease, 
+  downloadApkInternally, 
+  type ReleaseInfo, 
+  checkScraperUpdate, 
+  applyScraperUpdate, 
+  type ScraperUpdateStatus, 
+  getInstalledScraperInfo, 
+  type InstalledScraperInfo,
+  isNewerVersion
+} from '../utils/updaterService';
 import React, { useState, useEffect } from 'react';
 import { db, getUserProfile, saveUserProfile, type JobApplication, type UserProfile } from '../db/schema';
 import { useUIStore, type AppTheme } from '../store/useUIStore';
@@ -34,10 +44,11 @@ import {
   ChevronDown,
   ChevronUp,
   Download,
-  CheckCircle2
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 
-const CURRENT_VERSION = 'v2.1.0';
+const CURRENT_VERSION = 'v2.1.1';
 
 export const SettingsView: React.FC = () => {
   const { 
@@ -58,7 +69,7 @@ export const SettingsView: React.FC = () => {
   const [installedScraper, setInstalledScraper] = useState<InstalledScraperInfo>(getInstalledScraperInfo);
   const [isCheckingScraper, setIsCheckingScraper] = useState(false);
   const [isUpdatingScraper, setIsUpdatingScraper] = useState(false);
-  const [scraperUpdateNotice, setScraperUpdateNotice] = useState<string | null>(null);
+  const [scraperUpdateNotice, setScraperUpdateNotice] = useState<{ message: string; isError?: boolean } | null>(null);
 
 
 
@@ -185,10 +196,11 @@ export const SettingsView: React.FC = () => {
       const info = await fetchLatestRelease();
       setLatestReleaseInfo(info);
       if (info) {
-        const isLatest = info.tag.toLowerCase() === CURRENT_VERSION.toLowerCase();
+        // Strict semver check: only prompt update if GitHub release is strictly higher than CURRENT_VERSION
+        const hasUpdate = isNewerVersion(info.tag, CURRENT_VERSION);
         setUpdateStatus({
           checked: true,
-          isLatest,
+          isLatest: !hasUpdate,
           latestTag: info.tag,
           releaseUrl: info.htmlUrl
         });
@@ -235,19 +247,22 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-    const handleApplyScraperUpdate = async () => {
+  const handleApplyScraperUpdate = async () => {
     setIsUpdatingScraper(true);
     setScraperUpdateNotice(null);
     try {
       const res = await applyScraperUpdate();
-      setScraperUpdateNotice(res.message);
+      setScraperUpdateNotice({ message: res.message, isError: !res.success });
       if (res.updatedInfo) {
         setInstalledScraper(res.updatedInfo);
       }
       const refreshed = await checkScraperUpdate();
       setScraperUpdate(refreshed);
     } catch (err) {
-      setScraperUpdateNotice((err as Error).message || 'Scraper update failed.');
+      setScraperUpdateNotice({ 
+        message: (err as Error).message || 'Scraper update failed. Please check network.', 
+        isError: true 
+      });
     } finally {
       setIsUpdatingScraper(false);
     }
@@ -940,7 +955,7 @@ export const SettingsView: React.FC = () => {
                 {/* Update Available / Up-to-date banner */}
                 {updateStatus && !isDownloadingInternally && !downloadDone && (
                   <div 
-                    className="p-4 rounded-xl border text-xs font-semibold flex items-center justify-between gap-3 animate-fade-in"
+                    className="p-4 rounded-xl border text-xs font-semibold flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in"
                     style={{
                       background: updateStatus.isLatest ? 'rgba(16, 185, 129, 0.12)' : 'rgba(56, 189, 248, 0.15)',
                       color: updateStatus.isLatest ? 'var(--status-success)' : 'var(--accent-cool)',
@@ -949,7 +964,7 @@ export const SettingsView: React.FC = () => {
                   >
                     <div className="flex items-center space-x-2.5">
                       {updateStatus.isLatest ? <CheckCircle2 size={18} className="shrink-0" /> : <Sparkles size={18} className="shrink-0" />}
-                      <span>
+                      <span className="leading-snug">
                         {updateStatus.isLatest 
                           ? `JobFinder ${CURRENT_VERSION} is up to date (Latest Stable Release).`
                           : `New version available: ${updateStatus.latestTag}`}
@@ -960,7 +975,7 @@ export const SettingsView: React.FC = () => {
                       <button
                         type="button"
                         onClick={handleStartInternalDownload}
-                        className="btn-primary text-xs px-4 py-2 font-bold flex items-center space-x-1.5 shrink-0 cursor-pointer shadow-md hover:scale-105 transition-all"
+                        className="btn-primary text-xs px-4 py-2.5 font-bold flex items-center justify-center space-x-1.5 w-full sm:w-auto shrink-0 cursor-pointer shadow-md hover:scale-[1.02] transition-all"
                       >
                         <Download size={13} />
                         <span>Download &amp; Install Update</span>
@@ -1041,30 +1056,58 @@ export const SettingsView: React.FC = () => {
                   <div 
                     className="p-3 rounded-xl border text-xs font-semibold flex items-center space-x-2 animate-fade-in"
                     style={{
-                      background: scraperUpdate.hasUpdate ? 'rgba(59, 130, 246, 0.12)' : 'rgba(16, 185, 129, 0.12)',
-                      color: scraperUpdate.hasUpdate ? 'var(--status-info)' : 'var(--status-success)',
-                      borderColor: scraperUpdate.hasUpdate ? 'rgba(59, 130, 246, 0.25)' : 'rgba(16, 185, 129, 0.25)'
+                      background: scraperUpdate.error
+                        ? 'rgba(239, 68, 68, 0.12)'
+                        : scraperUpdate.hasUpdate 
+                        ? 'rgba(59, 130, 246, 0.12)' 
+                        : 'rgba(16, 185, 129, 0.12)',
+                      color: scraperUpdate.error
+                        ? '#f87171'
+                        : scraperUpdate.hasUpdate 
+                        ? 'var(--status-info)' 
+                        : 'var(--status-success)',
+                      borderColor: scraperUpdate.error
+                        ? 'rgba(239, 68, 68, 0.25)'
+                        : scraperUpdate.hasUpdate 
+                        ? 'rgba(59, 130, 246, 0.25)' 
+                        : 'rgba(16, 185, 129, 0.25)'
                     }}
                   >
-                    {scraperUpdate.hasUpdate ? <Sparkles size={15} className="shrink-0" /> : <CheckCircle2 size={15} className="shrink-0" />}
+                    {scraperUpdate.error ? (
+                      <AlertCircle size={15} className="shrink-0 text-rose-400" />
+                    ) : scraperUpdate.hasUpdate ? (
+                      <Sparkles size={15} className="shrink-0" />
+                    ) : (
+                      <CheckCircle2 size={15} className="shrink-0" />
+                    )}
                     <div className="flex-1 flex flex-wrap items-center justify-between gap-1">
                       <span>
-                        {scraperUpdate.hasUpdate
+                        {scraperUpdate.error
+                          ? `Scraper check notice: ${scraperUpdate.error}`
+                          : scraperUpdate.hasUpdate
                           ? `New update available: ${scraperUpdate.latestMessage || scraperUpdate.shortSha} (${scraperUpdate.shortSha})`
                           : `JobScrap ${scraperUpdate.installedVersion} (${scraperUpdate.installedSha}) is up to date with GitHub.`}
                       </span>
-                      {scraperUpdate.latestDate && (
+                      {scraperUpdate.latestDate && !scraperUpdate.error && (
                         <span className="text-[10px] opacity-80">{scraperUpdate.latestDate}</span>
                       )}
                     </div>
                   </div>
                 )}
 
-                {/* Success Notice after updating */}
+                {/* Status Notice after updating */}
                 {scraperUpdateNotice && (
-                  <div className="p-3 rounded-xl border text-xs font-semibold flex items-center space-x-2 bg-emerald-500/10 text-emerald-400 border-emerald-500/30 animate-fade-in">
-                    <CheckCircle2 size={15} className="shrink-0" />
-                    <span>{scraperUpdateNotice}</span>
+                  <div className={`p-3 rounded-xl border text-xs font-semibold flex items-center space-x-2 animate-fade-in ${
+                    scraperUpdateNotice.isError 
+                      ? 'bg-rose-500/10 text-rose-400 border-rose-500/30' 
+                      : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                  }`}>
+                    {scraperUpdateNotice.isError ? (
+                      <AlertCircle size={15} className="shrink-0 text-rose-400" />
+                    ) : (
+                      <CheckCircle2 size={15} className="shrink-0 text-emerald-400" />
+                    )}
+                    <span>{scraperUpdateNotice.message}</span>
                   </div>
                 )}
               </div>

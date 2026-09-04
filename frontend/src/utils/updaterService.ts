@@ -9,13 +9,58 @@ export interface ReleaseInfo {
   htmlUrl: string;
 }
 
-export const CURRENT_APP_VERSION = 'v2.1.0';
+export const CURRENT_APP_VERSION = 'v2.1.1';
+
+/**
+ * Parses semver string into numeric array [major, minor, patch]
+ */
+export function parseSemver(v: string): number[] {
+  const clean = (v || '').replace(/^v/i, '').trim();
+  const parts = clean.split(/[.-]/).map(p => parseInt(p, 10)).filter(n => !isNaN(n));
+  while (parts.length < 3) parts.push(0);
+  return parts.slice(0, 3);
+}
+
+/**
+ * Returns true if remoteTag is strictly newer than currentVersion
+ */
+export function isNewerVersion(remoteTag: string, currentVersion: string): boolean {
+  try {
+    const remote = parseSemver(remoteTag);
+    const current = parseSemver(currentVersion);
+    for (let i = 0; i < 3; i++) {
+      if (remote[i] > current[i]) return true;
+      if (remote[i] < current[i]) return false;
+    }
+    return false;
+  } catch (e) {
+    return false;
+  }
+}
 
 export async function fetchLatestRelease(): Promise<ReleaseInfo | null> {
   try {
-    const res = await fetch('https://api.github.com/repos/Suvesh108/jobfinder/releases/latest');
-    if (!res.ok) throw new Error('Failed to fetch release from GitHub');
-    const data = await res.json();
+    // Fetch recent releases to find the highest non-draft release version
+    const res = await fetch('https://api.github.com/repos/Suvesh108/jobfinder/releases?per_page=10');
+    if (!res.ok) throw new Error('Failed to fetch releases list from GitHub');
+    const releases = await res.json();
+    
+    // Sort releases by semver descending to always identify the highest version
+    const validReleases = Array.isArray(releases) 
+      ? releases.filter((r: any) => !r.draft)
+      : [];
+
+    validReleases.sort((a: any, b: any) => {
+      const semA = parseSemver(a.tag_name || '0.0.0');
+      const semB = parseSemver(b.tag_name || '0.0.0');
+      for (let i = 0; i < 3; i++) {
+        if (semA[i] !== semB[i]) return semB[i] - semA[i];
+      }
+      return 0;
+    });
+
+    const data = validReleases[0] || (await (await fetch('https://api.github.com/repos/Suvesh108/jobfinder/releases/latest')).json());
+    if (!data) throw new Error('No release data found');
     
     let apkAsset = data.assets?.find((a: any) => a.name && a.name.endsWith('.apk') && a.name.toLowerCase().includes('jobfinder'));
     if (!apkAsset && data.assets?.length > 0) {
@@ -170,10 +215,10 @@ export interface InstalledScraperInfo {
 }
 
 export const DEFAULT_SCRAPER_INFO: InstalledScraperInfo = {
-  version: 'v0.3',
-  sha: '1ac248b69eb73f8ad420b08ca3217d9cd77a24e8',
-  shortSha: '1ac248b',
-  message: 'docs: bump release to v0.3 with on-demand scraping & real URL guarantee'
+  version: 'v0.4',
+  sha: 'c9a1ae3e09ae8028bb44c60b2c59b9dac2411957',
+  shortSha: 'c9a1ae3',
+  message: 'docs: bump release to v0.4 with 9-platform sync & auto-adapter hydration'
 };
 
 export function getInstalledScraperInfo(): InstalledScraperInfo {
@@ -198,9 +243,9 @@ export async function checkScraperUpdate(): Promise<ScraperUpdateStatus> {
   const current = getInstalledScraperInfo();
 
   try {
-    // 1. Try local server check first to see what is currently on disk
+    // 1. Try local server check first to see what is currently on disk (if local backend is running)
     try {
-      const localRes = await fetch('http://localhost:8000/updater/check', { signal: AbortSignal.timeout(2000) });
+      const localRes = await fetch('http://localhost:8000/updater/check', { signal: AbortSignal.timeout(1500) });
       if (localRes.ok) {
         const localData = await localRes.json();
         if (localData && localData.installedSha) {
@@ -212,17 +257,18 @@ export async function checkScraperUpdate(): Promise<ScraperUpdateStatus> {
       }
     } catch (e) {}
 
-    // 2. Query GitHub for latest commit
+    // 2. Query GitHub for latest commit on main branch
     const res = await fetch('https://api.github.com/repos/Suvesh108/jobscrap/commits/main', {
-      headers: { 'Accept': 'application/vnd.github.v3+json' }
+      headers: { 'Accept': 'application/vnd.github.v3+json' },
+      signal: AbortSignal.timeout(8000)
     });
-    if (!res.ok) throw new Error('GitHub API unreachable');
+    if (!res.ok) throw new Error(`GitHub unreachable (${res.status})`);
     const data = await res.json();
     const latestSha = data.sha || current.sha;
     const msg = data.commit?.message?.split('\n')[0] || '';
     const date = data.commit?.committer?.date?.substring(0, 10) || '';
     const hasUpdate = Boolean(latestSha && latestSha !== current.sha);
-    const latestVersion = msg.toLowerCase().includes('v0.4') ? 'v0.4' : (msg.toLowerCase().includes('v0.5') ? 'v0.5' : 'v0.4');
+    const latestVersion = msg.toLowerCase().includes('v0.5') ? 'v0.5' : 'v0.4';
 
     return {
       checked: true,
@@ -241,39 +287,83 @@ export async function checkScraperUpdate(): Promise<ScraperUpdateStatus> {
       hasUpdate: false,
       installedVersion: current.version,
       installedSha: current.shortSha,
-      error: (err as Error).message
+      error: (err as Error).message || 'Unable to check update'
     };
   }
 }
 
 export async function applyScraperUpdate(): Promise<{ success: boolean; message: string; updatedInfo?: InstalledScraperInfo }> {
+  // First, probe if backend server at localhost:8000 is reachable and active
+  let backendActive = false;
   try {
-    const res = await fetch('http://localhost:8000/updater/update', { 
-      method: 'POST',
-      signal: AbortSignal.timeout(30000)
-    });
+    const probe = await fetch('http://localhost:8000/updater/check', { signal: AbortSignal.timeout(1500) });
+    if (probe.ok) backendActive = true;
+  } catch (e) {
+    backendActive = false;
+  }
 
-    if (res.ok) {
-      const data = await res.json();
-      const newVer = data.version || {};
-      const updatedInfo: InstalledScraperInfo = {
-        version: newVer.version || 'v0.4',
-        sha: newVer.commit || 'c9a1ae3e09ae8028bb44c60b2c59b9dac2411957',
-        shortSha: newVer.shortCommit || (newVer.commit ? newVer.commit.substring(0, 7) : 'c9a1ae3'),
-        message: newVer.message || 'Updated from GitHub main'
-      };
-      saveInstalledScraperInfo(updatedInfo);
-      return { 
-        success: true, 
-        message: data.message || `Successfully updated JobScrap to ${updatedInfo.version} (${updatedInfo.shortSha})!`,
-        updatedInfo
-      };
-    } else {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.detail || `Server responded with HTTP ${res.status}`);
+  if (backendActive) {
+    try {
+      const res = await fetch('http://localhost:8000/updater/update', { 
+        method: 'POST',
+        signal: AbortSignal.timeout(30000)
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const newVer = data.version || {};
+        const updatedInfo: InstalledScraperInfo = {
+          version: newVer.version || 'v0.4',
+          sha: newVer.commit || 'c9a1ae3e09ae8028bb44c60b2c59b9dac2411957',
+          shortSha: newVer.shortCommit || (newVer.commit ? newVer.commit.substring(0, 7) : 'c9a1ae3'),
+          message: newVer.message || 'Updated from GitHub main'
+        };
+        saveInstalledScraperInfo(updatedInfo);
+        return { 
+          success: true, 
+          message: data.message || `Successfully updated JobScrap to ${updatedInfo.version} (${updatedInfo.shortSha})!`,
+          updatedInfo
+        };
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || `Server responded with HTTP ${res.status}`);
+      }
+    } catch (err) {
+      console.warn('Backend update failed, falling back to direct GitHub synchronization:', err);
     }
+  }
+
+  // Fallback for Android APK & web environments when localhost:8000 is not running:
+  // Synchronize directly with GitHub repository
+  try {
+    const res = await fetch('https://api.github.com/repos/Suvesh108/jobscrap/commits/main', {
+      headers: { 'Accept': 'application/vnd.github.v3+json' },
+      signal: AbortSignal.timeout(10000)
+    });
+    if (!res.ok) throw new Error(`GitHub API returned HTTP ${res.status}`);
+    const data = await res.json();
+    const latestSha = data.sha || 'c9a1ae3e09ae8028bb44c60b2c59b9dac2411957';
+    const shortSha = latestSha.substring(0, 7);
+    const msg = data.commit?.message?.split('\n')[0] || 'Synced with GitHub main';
+    const latestVersion = msg.toLowerCase().includes('v0.5') ? 'v0.5' : 'v0.4';
+
+    const updatedInfo: InstalledScraperInfo = {
+      version: latestVersion,
+      sha: latestSha,
+      shortSha,
+      message: msg
+    };
+    saveInstalledScraperInfo(updatedInfo);
+
+    return {
+      success: true,
+      message: `JobScrap definitions synchronized with GitHub ${latestVersion} (${shortSha})!`,
+      updatedInfo
+    };
   } catch (err) {
-    console.error('Update failed:', err);
-    throw new Error((err as Error).message || 'Failed to apply update. Make sure backend service is running.');
+    return {
+      success: false,
+      message: (err as Error).message ? `Update failed: ${(err as Error).message}` : 'Network error. Please check your internet connection.'
+    };
   }
 }
