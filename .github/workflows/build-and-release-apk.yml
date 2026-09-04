@@ -87,13 +87,12 @@ jobs:
 
             ---
 
-            ### ✨ What's New in v2.1.2
+            ### ✨ What's New in v2.1.3
 
-            * 🔐 **Unified Permanent Android Signing Keystore**: Fixed "App not installed as package conflicts with an existing package" by bundling a persistent, dedicated keystore (`jobfinder.keystore`). Every release is now signed with the exact same cryptographic key for seamless in-app OTA updates.
-            * 🎨 **Bespoke Circular Android Logo Layout**: Re-engineered Android launcher icons with standard 108dp safe-zone scaling. In circular launchers, the white briefcase, handle, and electric cyan search lens are fully visible with comfortable breathing room, preventing launcher border clipping.
-            * 🔢 **Smart Semver Release Engine**: Strict semantic versioning comparison prevents showing older releases as updates.
-            * 🕷️ **Reliable Android Scraper Synchronization**: Multi-portal definitions synchronize directly with GitHub main even when local backend is offline.
-            * 📱 **Responsive Mobile Update UI**: Fully responsive full-width update banner layout.
+            * 📱 **Android Native Settings Accordion (Expand & Shrink System)**: Replaced the horizontal scrolling subtab bar on Android with a responsive, vertical expand and shrink accordion system. Tap any setting section (AI, Scrapers, Preferences, Database, About) to smoothly expand or shrink it on demand, with a 1-tap "Expand All / Shrink All" control.
+            * 🖥️ **Preserved Web & Desktop Layout**: Retained the full two-column sidebar layout on web and desktop while providing a native touch-first experience inside the Android APK.
+            * 🔐 **Unified Permanent Android Keystore**: Signed with permanent `jobfinder.keystore` for seamless OTA in-app updates.
+            * 🎨 **Bespoke Circular Launcher Icon**: Calibrated 108dp safe-zone scaling prevents edge cropping on circular Android launchers.
             * 🚀 **Single Verified APK Artifact**: Direct standalone installation package `JobFinder-${{ github.ref_name }}.apk`.
 
             ---

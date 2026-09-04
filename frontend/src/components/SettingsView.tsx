@@ -47,8 +47,9 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 
-const CURRENT_VERSION = 'v2.1.2';
+const CURRENT_VERSION = 'v2.1.3';
 
 export const SettingsView: React.FC = () => {
   const { 
@@ -60,7 +61,41 @@ export const SettingsView: React.FC = () => {
     setTheme 
   } = useUIStore();
 
+  // Detect if running inside Android APK (Capacitor native container)
+  const isAndroidApk = Capacitor.isNativePlatform() || 
+                       Capacitor.getPlatform() === 'android' || 
+                       (typeof window !== 'undefined' && typeof (window as any).NativeUpdater !== 'undefined');
+
   const [activeSubTab, setActiveSubTab] = useState<'ai' | 'scrapers' | 'preferences' | 'database' | 'about'>('ai');
+  
+  // Accordion Expand/Shrink state for Android APK layout
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    ai: true,
+    scrapers: false,
+    preferences: false,
+    database: false,
+    about: false,
+  });
+
+  const toggleSection = (id: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
+
+  const allExpanded = Object.values(expandedSections).every(Boolean);
+
+  const handleToggleAll = () => {
+    const nextState = !allExpanded;
+    setExpandedSections({
+      ai: nextState,
+      scrapers: nextState,
+      preferences: nextState,
+      database: nextState,
+      about: nextState,
+    });
+  };
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [dbSuccessMessage, setDbSuccessMessage] = useState<string | null>(null);
   const [jobspyStatus, setJobspyStatus] = useState<'checking' | 'running' | 'offline'>('checking');
@@ -363,48 +398,9 @@ export const SettingsView: React.FC = () => {
     { id: 'about', label: 'About & Updates', icon: Info, color: 'text-sky-400' },
   ] as const;
 
-  return (
-    <div className="page-content w-full max-w-full px-3 sm:px-8 py-3 sm:py-6 pb-24 sm:pb-10 overflow-y-auto overflow-x-hidden">
-      <div className="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-[240px_1fr] gap-6">
-        
-        {/* Left Navigation Sub-Tabs */}
-        <div className="w-full card p-2 shrink-0 flex md:flex-col overflow-x-auto md:overflow-visible gap-1.5 md:space-y-1.5 shadow-xl border scrollbar-none" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
-          {SUB_TABS.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeSubTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveSubTab(tab.id)}
-                className={`w-auto md:w-full whitespace-nowrap text-left px-3 py-2 md:px-3.5 md:py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all cursor-pointer border shrink-0 ${
-                  isActive 
-                    ? 'text-text-primary shadow-xs' 
-                    : 'text-text-muted hover:text-text-primary hover:bg-surface-raised/50'
-                }`}
-                style={{
-                  background: isActive ? 'var(--sidebar-item-active)' : 'transparent',
-                  borderColor: isActive ? 'var(--border-glow)' : 'transparent'
-                }}
-              >
-                <div className="flex items-center space-x-2.5">
-                  <Icon className={`h-4 w-4 ${tab.color}`} />
-                  <span>{tab.label}</span>
-                </div>
-                {isActive && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-xs" />}
-              </button>
-            );
-          })}
-        </div>
 
-        {/* Right Content Area */}
-        <div className="w-full min-w-0 card p-4 sm:p-6 space-y-6" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
-          
-          {/* ══════════════════════════════════════════════════════════════
-              TAB 1: AI PROVIDERS (INLINE EXPANDING ACCORDION CARDS)
-              ══════════════════════════════════════════════════════════════ */}
-          {activeSubTab === 'ai' && (
-            <div className="space-y-5 animate-fade-in">
+  const renderAiSection = () => (
+    <div className="space-y-5 animate-fade-in">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h3 className="text-sm font-bold text-text-primary font-display flex items-center space-x-2">
@@ -654,13 +650,10 @@ export const SettingsView: React.FC = () => {
                 })}
               </div>
             </div>
-          )}
+  );
 
-          {/* ══════════════════════════════════════════════════════════════
-              TAB 2: JOBSPY SCRAPERS CONFIGURATION
-              ══════════════════════════════════════════════════════════════ */}
-          {activeSubTab === 'scrapers' && (
-            <div className="space-y-6 animate-fade-in">
+  const renderScrapersSection = () => (
+    <div className="space-y-6 animate-fade-in">
               <div>
                 <h3 className="text-sm font-bold text-text-primary font-display flex items-center space-x-2">
                   <Sliders className="h-4 w-4 text-indigo-400" />
@@ -721,13 +714,10 @@ export const SettingsView: React.FC = () => {
                 </div>
               </div>
             </div>
-          )}
+  );
 
-          {/* ══════════════════════════════════════════════════════════════
-              TAB 3: PREFERENCES & THEME
-              ══════════════════════════════════════════════════════════════ */}
-          {activeSubTab === 'preferences' && (
-            <div className="space-y-6 animate-fade-in">
+  const renderPreferencesSection = () => (
+    <div className="space-y-6 animate-fade-in">
               <div>
                 <h3 className="text-sm font-bold text-text-primary font-display flex items-center space-x-2">
                   <Palette className="h-4 w-4 text-purple-400" />
@@ -797,13 +787,10 @@ export const SettingsView: React.FC = () => {
                 </div>
               </div>
             </div>
-          )}
+  );
 
-          {/* ══════════════════════════════════════════════════════════════
-              TAB 4: DATABASE & BACKUPS
-              ══════════════════════════════════════════════════════════════ */}
-          {activeSubTab === 'database' && (
-            <div className="space-y-6 animate-fade-in">
+  const renderDatabaseSection = () => (
+    <div className="space-y-6 animate-fade-in">
               <div>
                 <h3 className="text-sm font-bold text-text-primary font-display flex items-center space-x-2">
                   <Database className="h-4 w-4 text-emerald-400" />
@@ -866,13 +853,10 @@ export const SettingsView: React.FC = () => {
                 </button>
               </div>
             </div>
-          )}
+  );
 
-          {/* ══════════════════════════════════════════════════════════════
-              TAB 5: ABOUT, IN-APP OTA UPDATES & JOBSPY ENGINE UPDATER
-              ══════════════════════════════════════════════════════════════ */}
-          {activeSubTab === 'about' && (
-            <div className="space-y-6 animate-fade-in">
+  const renderAboutSection = () => (
+    <div className="space-y-6 animate-fade-in">
               {/* Section Header */}
               <div className="border-b pb-4" style={{ borderColor: 'var(--border-subtle)' }}>
                 <div className="flex items-center space-x-2">
@@ -1133,12 +1117,190 @@ export const SettingsView: React.FC = () => {
                 </a>
               </div>
             </div>
-          )}
+  );
 
+  const SECTIONS_CONFIG = [
+    {
+      id: 'ai',
+      title: 'AI Providers & Engine',
+      subtitle: 'Gemini, Groq, Ollama & Custom APIs',
+      Icon: Sparkles,
+      iconColor: 'text-cyan-400',
+      iconBg: 'bg-cyan-500/10',
+      badge: aiProvider.toUpperCase(),
+      render: renderAiSection
+    },
+    {
+      id: 'scrapers',
+      title: 'JobScrap Scrapers',
+      subtitle: '9-Portal Parallel Aggregator Switches',
+      Icon: Sliders,
+      iconColor: 'text-indigo-400',
+      iconBg: 'bg-indigo-500/10',
+      badge: `${Object.values(enabledAdapters).filter(Boolean).length} Portals`,
+      render: renderScrapersSection
+    },
+    {
+      id: 'preferences',
+      title: 'Preferences & Theme',
+      subtitle: 'Color schemes & stale reminder threshold',
+      Icon: Palette,
+      iconColor: 'text-purple-400',
+      iconBg: 'bg-purple-500/10',
+      badge: theme === 'system' ? 'Auto' : (theme === 'dark' ? 'Dark' : 'Light'),
+      render: renderPreferencesSection
+    },
+    {
+      id: 'database',
+      title: 'Database & Backups',
+      subtitle: 'Local IndexedDB JSON Export & Import',
+      Icon: Database,
+      iconColor: 'text-emerald-400',
+      iconBg: 'bg-emerald-500/10',
+      badge: `${allJobs.length} Jobs`,
+      render: renderDatabaseSection
+    },
+    {
+      id: 'about',
+      title: 'About & System Updates',
+      subtitle: 'Native OTA updates & scraper definitions',
+      Icon: Info,
+      iconColor: 'text-sky-400',
+      iconBg: 'bg-sky-500/10',
+      badge: CURRENT_VERSION,
+      render: renderAboutSection
+    }
+  ] as const;
+  return (
+    <div className="page-content w-full max-w-full px-3 sm:px-8 py-3 sm:py-6 pb-24 sm:pb-10 overflow-y-auto overflow-x-hidden">
+      {isAndroidApk ? (
+        /* ══════════════════════════════════════════════════════════════
+            ANDROID APK: EXPAND & SHRINK ACCORDION SYSTEM (NO HORIZONTAL SCROLL)
+            ══════════════════════════════════════════════════════════════ */
+        <div className="w-full max-w-3xl mx-auto space-y-3 pb-8 animate-fade-in">
+          {/* Header Bar with Quick Expand/Shrink All */}
+          <div className="flex items-center justify-between px-1 py-1">
+            <div>
+              <h2 className="text-sm font-bold text-text-primary font-display flex items-center space-x-2">
+                <Sliders className="h-4 w-4 text-cyan-400" />
+                <span>Settings &amp; Configuration</span>
+              </h2>
+              <p className="text-[11px] text-text-muted mt-0.5">Tap any section below to expand or shrink settings</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleToggleAll}
+              className="text-[11px] px-3 py-1.5 rounded-xl border font-bold flex items-center space-x-1.5 text-text-muted hover:text-text-primary transition-all cursor-pointer"
+              style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}
+            >
+              <span>{allExpanded ? 'Shrink All' : 'Expand All'}</span>
+            </button>
+          </div>
+
+          {/* 5 Collapsible Accordion Section Cards */}
+          {SECTIONS_CONFIG.map((sec) => {
+            const isExpanded = !!expandedSections[sec.id];
+            const Icon = sec.Icon;
+
+            return (
+              <div 
+                key={sec.id}
+                className="rounded-2xl border transition-all duration-200 overflow-hidden shadow-sm"
+                style={{
+                  background: 'var(--bg-surface)',
+                  borderColor: isExpanded ? 'rgba(6, 182, 212, 0.4)' : 'var(--border-subtle)'
+                }}
+              >
+                {/* Accordion Header - Tap to Expand or Shrink */}
+                <button
+                  type="button"
+                  onClick={() => toggleSection(sec.id)}
+                  className="w-full p-4 flex items-center justify-between text-left cursor-pointer hover:bg-surface-raised/40 transition-colors"
+                >
+                  <div className="flex items-center space-x-3 min-w-0">
+                    <div className={`p-2.5 rounded-xl ${sec.iconBg} ${sec.iconColor} shrink-0`}>
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center space-x-2">
+                        <h3 className="text-xs font-bold text-text-primary truncate font-display">{sec.title}</h3>
+                        {sec.badge && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shrink-0">
+                            {sec.badge}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-text-muted truncate mt-0.5">{sec.subtitle}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2 shrink-0 ml-2">
+                    <span className="text-[10px] font-bold text-text-muted hidden sm:inline">
+                      {isExpanded ? 'Shrink' : 'Expand'}
+                    </span>
+                    <div className={`p-1.5 rounded-lg bg-surface-raised text-text-muted transition-transform duration-200 ${isExpanded ? 'rotate-180 text-cyan-400' : ''}`}>
+                      <ChevronDown size={15} />
+                    </div>
+                  </div>
+                </button>
+
+                {/* Collapsible Content */}
+                {isExpanded && (
+                  <div className="p-4 border-t space-y-5 animate-fade-in" style={{ borderColor: 'var(--border-subtle)' }}>
+                    {sec.render()}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
-      </div>
+      ) : (
+        /* ══════════════════════════════════════════════════════════════
+            DESKTOP / WEB: STANDARD 2-COLUMN SIDEBAR & SUB-TABS
+            ══════════════════════════════════════════════════════════════ */
+        <div className="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-[240px_1fr] gap-6">
+          {/* Left Navigation Sub-Tabs */}
+          <div className="w-full card p-2 shrink-0 flex md:flex-col overflow-x-auto md:overflow-visible gap-1.5 md:space-y-1.5 shadow-xl border scrollbar-none" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
+            {SUB_TABS.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeSubTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveSubTab(tab.id)}
+                  className={`w-auto md:w-full whitespace-nowrap text-left px-3 py-2 md:px-3.5 md:py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all cursor-pointer border shrink-0 ${
+                    isActive 
+                      ? 'text-text-primary shadow-xs' 
+                      : 'text-text-muted hover:text-text-primary hover:bg-surface-raised/50'
+                  }`}
+                  style={{
+                    background: isActive ? 'var(--sidebar-item-active)' : 'transparent',
+                    borderColor: isActive ? 'var(--border-glow)' : 'transparent'
+                  }}
+                >
+                  <div className="flex items-center space-x-2.5">
+                    <Icon className={`h-4 w-4 ${tab.color}`} />
+                    <span>{tab.label}</span>
+                  </div>
+                  {isActive && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-xs" />}
+                </button>
+              );
+            })}
+          </div>
 
-      {/* Clear Database Confirmation Modal */}
+          {/* Right Content Area */}
+          <div className="w-full min-w-0 card p-4 sm:p-6 space-y-6" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
+            {activeSubTab === 'ai' && renderAiSection()}
+            {activeSubTab === 'scrapers' && renderScrapersSection()}
+            {activeSubTab === 'preferences' && renderPreferencesSection()}
+            {activeSubTab === 'database' && renderDatabaseSection()}
+            {activeSubTab === 'about' && renderAboutSection()}
+          </div>
+        </div>
+      )}
+
+{/* Clear Database Confirmation Modal */}
       {showClearModal && (
         <ConfirmModal
           isOpen={showClearModal}
