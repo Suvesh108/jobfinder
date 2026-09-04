@@ -15,6 +15,10 @@ node_modules
 dist
 **/dist
 dist-ssr
+release/
+**/release/
+*.exe
+*.apk
 
 # Environment & secrets — NEVER commit these
 .env
