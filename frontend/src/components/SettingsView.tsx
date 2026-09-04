@@ -45,11 +45,14 @@ import {
   ChevronUp,
   Download,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Server,
+  Wifi
 } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
+import { getBackendUrl, setBackendUrl, pingBackend } from '../utils/backendService';
 
-const CURRENT_VERSION = 'v2.1.3';
+const CURRENT_VERSION = 'v2.1.4';
 
 export const SettingsView: React.FC = () => {
   const { 
@@ -99,6 +102,22 @@ export const SettingsView: React.FC = () => {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [dbSuccessMessage, setDbSuccessMessage] = useState<string | null>(null);
   const [jobspyStatus, setJobspyStatus] = useState<'checking' | 'running' | 'offline'>('checking');
+  const [backendUrl, setBackendUrlState] = useState<string>(getBackendUrl());
+  const [isTestingBackend, setIsTestingBackend] = useState(false);
+  const [backendPingResult, setBackendPingResult] = useState<{ ok: boolean; latencyMs?: number; version?: string; engine?: string; error?: string } | null>(null);
+
+  const handleSaveAndTestBackend = async (overrideUrl?: string) => {
+    const targetUrl = overrideUrl !== undefined ? overrideUrl : backendUrl;
+    setBackendUrl(targetUrl);
+    setBackendUrlState(targetUrl);
+    setIsTestingBackend(true);
+    setBackendPingResult(null);
+
+    const res = await pingBackend(targetUrl);
+    setBackendPingResult(res);
+    setJobspyStatus(res.ok ? 'running' : 'offline');
+    setIsTestingBackend(false);
+  };
   // Scraper Check for Update State
   const [scraperUpdate, setScraperUpdate] = useState<ScraperUpdateStatus | null>(null);
   const [installedScraper, setInstalledScraper] = useState<InstalledScraperInfo>(getInstalledScraperInfo);
@@ -149,11 +168,11 @@ export const SettingsView: React.FC = () => {
       setAiModel(p.aiModel || '');
     });
 
-    // Check JobScrap Backend
-    const pythonUrl = (import.meta.env.VITE_PYTHON_BACKEND_URL as string)?.replace(/\/+$/, '') || 'http://localhost:8000';
-    fetch(`${pythonUrl}/health`)
-      .then(res => res.ok ? setJobspyStatus('running') : setJobspyStatus('offline'))
-      .catch(() => setJobspyStatus('offline'));
+    // Check JobScrap Backend via unified backendService
+    pingBackend().then(res => {
+      setJobspyStatus(res.ok ? 'running' : 'offline');
+      if (res.ok) setBackendPingResult(res);
+    }).catch(() => setJobspyStatus('offline'));
 
     // Load Database Jobs
     db.jobs.toArray().then(setAllJobs);
@@ -670,12 +689,114 @@ export const SettingsView: React.FC = () => {
                   <div className={`w-3 h-3 rounded-full ${jobspyStatus === 'running' ? 'bg-emerald-400 shadow-xs' : 'bg-amber-400'}`} />
                   <div>
                     <h4 className="text-xs font-bold text-text-primary">FastAPI Python Scraper Microservice</h4>
-                    <p className="text-[10px] text-text-muted">JobScrap Multi-Portal Engine (Port 8000) • Local High-Speed Crawler with SQLite Cache</p>
+                    <p className="text-[10px] text-text-muted">
+                      {jobspyStatus === 'running'
+                        ? `Connected to JobScrap Server (${backendPingResult?.latencyMs ? backendPingResult.latencyMs + 'ms' : 'Live'})`
+                        : 'Standalone Mode (Zero-Config Direct APIs & Verified Dataset Active)'}
+                    </p>
                   </div>
                 </div>
-                <span className="text-xs font-bold px-2.5 py-1 rounded-full border text-emerald-400" style={{ background: 'rgba(16, 185, 129, 0.12)', borderColor: 'rgba(16, 185, 129, 0.3)' }}>
-                  {jobspyStatus === 'running' ? 'Connected' : 'Active (Local Fallback)'}
+                <span 
+                  className={`text-xs font-bold px-2.5 py-1 rounded-full border ${
+                    jobspyStatus === 'running' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : 'text-amber-400 border-amber-500/30 bg-amber-500/10'
+                  }`}
+                >
+                  {jobspyStatus === 'running' ? 'Connected' : 'Standalone Mode'}
                 </span>
+              </div>
+
+              {/* Backend Server Configuration & Mobile Network */}
+              <div className="p-4 rounded-2xl border space-y-3" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-subtle)' }}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Server className="h-4 w-4 text-cyan-400" />
+                    <h4 className="text-xs font-bold text-text-primary">JobScrap Backend Server URL</h4>
+                  </div>
+                  {isAndroidApk && (
+                    <span className="text-[10px] font-semibold text-cyan-300 bg-cyan-500/15 border border-cyan-500/30 px-2 py-0.5 rounded-full flex items-center space-x-1">
+                      <Wifi size={10} />
+                      <span>Mobile Supported</span>
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <input
+                    type="text"
+                    value={backendUrl}
+                    onChange={e => setBackendUrlState(e.target.value)}
+                    placeholder="http://192.168.1.X:8000 or http://localhost:8000"
+                    className="flex-1 border rounded-xl px-3.5 py-2 text-xs font-mono text-text-primary focus:outline-none"
+                    style={{ background: 'var(--bg-input)', borderColor: 'var(--border-subtle)' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleSaveAndTestBackend()}
+                    disabled={isTestingBackend}
+                    className="btn-primary text-xs px-3.5 py-2 font-bold flex items-center justify-center space-x-1.5 shrink-0 cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw size={13} className={isTestingBackend ? 'animate-spin' : ''} />
+                    <span>{isTestingBackend ? 'Testing...' : 'Test & Save'}</span>
+                  </button>
+                </div>
+
+                {/* Preset Fast-Fill Pills */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  <span className="text-[10px] text-text-muted mr-1">Presets:</span>
+                  <button
+                    type="button"
+                    onClick={() => handleSaveAndTestBackend('http://localhost:8000')}
+                    className="text-[10px] px-2 py-0.5 rounded-md border font-mono bg-surface-raised text-text-muted hover:text-text-primary border-subtle hover:border-cyan-500/40 cursor-pointer"
+                  >
+                    Localhost (PC)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSaveAndTestBackend('http://10.0.2.2:8000')}
+                    className="text-[10px] px-2 py-0.5 rounded-md border font-mono bg-surface-raised text-text-muted hover:text-text-primary border-subtle hover:border-cyan-500/40 cursor-pointer"
+                  >
+                    Android Emulator (10.0.2.2)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSaveAndTestBackend('')}
+                    className="text-[10px] px-2 py-0.5 rounded-md border font-mono bg-surface-raised text-amber-400 border-amber-500/30 hover:bg-amber-500/10 cursor-pointer"
+                  >
+                    Clear (Standalone)
+                  </button>
+                </div>
+
+                {/* Ping Result Feedback */}
+                {backendPingResult && (
+                  <div
+                    className={`p-3 rounded-xl border text-xs font-semibold flex items-center space-x-2 animate-fade-in ${
+                      backendPingResult.ok
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                        : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                    }`}
+                  >
+                    {backendPingResult.ok ? (
+                      <CheckCircle2 size={15} className="shrink-0 text-emerald-400" />
+                    ) : (
+                      <AlertCircle size={15} className="shrink-0 text-amber-400" />
+                    )}
+                    <div className="flex-1 flex flex-wrap items-center justify-between gap-1">
+                      <span>
+                        {backendPingResult.ok
+                          ? `${backendPingResult.engine || 'JobScrap'} ${backendPingResult.version || 'v0.4'} is reachable!`
+                          : `Server check: ${backendPingResult.error || 'Offline'} — Standalone mode is active.`}
+                      </span>
+                      {backendPingResult.latencyMs !== undefined && (
+                        <span className="text-[10px] opacity-80">{backendPingResult.latencyMs}ms latency</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Helpful Note for Mobile */}
+                <p className="text-[10px] text-text-muted leading-relaxed">
+                  📱 <strong>Mobile Note:</strong> When running on Android phone, <code className="text-cyan-300">localhost</code> refers to the phone itself. To connect to your PC's Python scraper, enter your PC's local Wi-Fi IP (e.g. <code className="text-cyan-300">http://192.168.1.15:8000</code>). If no backend is running, JobFinder will seamlessly use direct live APIs and verified datasets.
+                </p>
               </div>
 
               {/* Scraper Toggles */}

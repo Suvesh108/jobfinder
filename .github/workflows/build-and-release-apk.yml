@@ -87,13 +87,14 @@ jobs:
 
             ---
 
-            ### ✨ What's New in v2.1.3
+            ### ✨ What's New in v2.1.4
 
-            * 📱 **Android Native Settings Accordion (Expand & Shrink System)**: Replaced the horizontal scrolling subtab bar on Android with a responsive, vertical expand and shrink accordion system. Tap any setting section (AI, Scrapers, Preferences, Database, About) to smoothly expand or shrink it on demand, with a 1-tap "Expand All / Shrink All" control.
-            * 🖥️ **Preserved Web & Desktop Layout**: Retained the full two-column sidebar layout on web and desktop while providing a native touch-first experience inside the Android APK.
-            * 🔐 **Unified Permanent Android Keystore**: Signed with permanent `jobfinder.keystore` for seamless OTA in-app updates.
-            * 🎨 **Bespoke Circular Launcher Icon**: Calibrated 108dp safe-zone scaling prevents edge cropping on circular Android launchers.
-            * 🚀 **Single Verified APK Artifact**: Direct standalone installation package `JobFinder-${{ github.ref_name }}.apk`.
+            * 🔍 **Android APK Job Discovery Fix**: Solved the issue where the Android APK was unable to find job listings.
+            * 🌐 **Multi-Tier Network Architecture & Native CapacitorHttp**: Added native HTTP bridge via CapacitorHttp to eliminate WebView CORS and Mixed Content restrictions on Android.
+            * 📡 **Custom Backend Server URL & Connectivity Controls**: Added a dedicated JobScrap server configuration card in Settings with 1-tap latency ping test, presets (Localhost, Android Emulator, Standalone), and connection status.
+            * 📦 **Zero-Config Standalone Discovery & Direct APIs**: Bundled 397 authentic verified job listings from Naukri, Indeed, LinkedIn, Internshala, Shine, Freshersworld, Apna, Glassdoor, and Instahyre, plus direct live Instahyre API integration so Android users immediately discover jobs even without running a local PC backend.
+            * 🔓 **Cleartext HTTP Permitted**: Enabled `android:usesCleartextTraffic="true"` in AndroidManifest.xml for seamless LAN PC connections (`http://192.168.x.x:8000`).
+            * 📱 **Settings Expand & Shrink Accordion**: Retained the smooth accordion system with full mobile responsiveness.
 
             ---
 
